@@ -10,33 +10,42 @@ import com.badlogic.gdx.math.Rectangle;
 
 public class Enemy {
 
+    public enum EnemyType {
+        SLIME,
+        KNIGHT,
+        DARK_SLIME
+    }
+
+    private final EnemyType enemyType;
+    private final boolean sourceFacesRight;
+
     // 충돌 판정 위치
     private float x;
     private float y;
 
     // 실제 몸 충돌 크기
-    private final float collisionWidth = 52;
-    private final float collisionHeight = 58;
+    private float collisionWidth;
+    private float collisionHeight;
 
     // 가만히 있을 때
-    private final float idleSpriteWidth = 150;
-    private final float idleSpriteHeight = 120;
-    private final float idleYOffset = -30;
+    private float idleSpriteWidth;
+    private float idleSpriteHeight;
+    private float idleYOffset;
 
     // 움직일 때
-    private final float moveSpriteWidth = 120;
-    private final float moveSpriteHeight = 96;
-    private final float moveYOffset = -18;
+    private float moveSpriteWidth;
+    private float moveSpriteHeight;
+    private float moveYOffset;
 
     // 공격할 때
-    private final float attackSpriteWidth = 190;
-    private final float attackSpriteHeight = 130;
-    private final float attackYOffset = -30;
+    private float attackSpriteWidth;
+    private float attackSpriteHeight;
+    private float attackYOffset;
 
     // 사망할 때
-    private final float deathSpriteWidth = 150;
-    private final float deathSpriteHeight = 100;
-    private final float deathYOffset = -18;
+    private float deathSpriteWidth;
+    private float deathSpriteHeight;
+    private float deathYOffset;
 
     // 이미지
     private Texture idleTexture;
@@ -60,7 +69,7 @@ public class Enemy {
     private boolean attackDamageApplied = false;
 
     // 세 번째 공격 프레임에서 피해 적용
-    private final float attackHitTime = 0.24f;
+    private float attackHitTime;
 
     // 사망
     private float deathAnimationTime = 0;
@@ -73,18 +82,19 @@ public class Enemy {
     private boolean facingRight = true;
 
     // 이동과 감지
-    private final float moveSpeed = 75;
-    private final float detectionRange = 350;
-    private final float attackRange = 72;
+    private float moveSpeed;
+    private float detectionRange;
+    private float attackRange;
 
     // 공격 재사용 시간
     private float attackCooldownTimer = 0;
-    private final float attackCooldown = 1.2f;
+    private float attackCooldown;
 
     // 체력
-    private int health = 3;
-    private final int maxHealth = 3;
+    private int health;
+    private int maxHealth;
     private boolean alive = true;
+    private boolean goldRewardClaimed = false;
 
     // 피격 효과
     private float hitFlashTimer = 0;
@@ -101,30 +111,176 @@ public class Enemy {
 
     public Enemy(float startX, float startY) {
 
+        this(
+                startX,
+                startY,
+                EnemyType.SLIME
+        );
+    }
+
+    public Enemy(
+            float startX,
+            float startY,
+            EnemyType enemyType) {
+
         x = startX;
         y = startY;
+        this.enemyType = enemyType;
+        sourceFacesRight =
+                enemyType != EnemyType.KNIGHT;
 
+        configureStats();
         loadTextures();
         createAnimations();
     }
 
+    private void configureStats() {
+
+        if (enemyType == EnemyType.KNIGHT) {
+
+            collisionWidth = 55f;
+            collisionHeight = 105f;
+
+            idleSpriteWidth = 125f;
+            idleSpriteHeight = 150f;
+            idleYOffset = -22f;
+
+            moveSpriteWidth = 125f;
+            moveSpriteHeight = 150f;
+            moveYOffset = -22f;
+
+            attackSpriteWidth = 180f;
+            attackSpriteHeight = 150f;
+            attackYOffset = -22f;
+
+            deathSpriteWidth = 125f;
+            deathSpriteHeight = 150f;
+            deathYOffset = -22f;
+
+            moveSpeed = 62f;
+            detectionRange = 390f;
+            attackRange = 92f;
+            attackCooldown = 1.4f;
+            attackHitTime = 0.30f;
+
+            maxHealth = 5;
+            health = maxHealth;
+
+        } else if (enemyType == EnemyType.DARK_SLIME) {
+
+            collisionWidth = 58f;
+            collisionHeight = 72f;
+
+            idleSpriteWidth = 145f;
+            idleSpriteHeight = 120f;
+            idleYOffset = -25f;
+
+            moveSpriteWidth = 145f;
+            moveSpriteHeight = 120f;
+            moveYOffset = -25f;
+
+            attackSpriteWidth = 170f;
+            attackSpriteHeight = 125f;
+            attackYOffset = -25f;
+
+            deathSpriteWidth = 145f;
+            deathSpriteHeight = 120f;
+            deathYOffset = -25f;
+
+            moveSpeed = 70f;
+            detectionRange = 380f;
+            attackRange = 90f;
+            attackCooldown = 1.3f;
+            attackHitTime = 0.30f;
+
+            maxHealth = 4;
+            health = maxHealth;
+
+        } else {
+
+            collisionWidth = 52f;
+            collisionHeight = 58f;
+
+            idleSpriteWidth = 150f;
+            idleSpriteHeight = 120f;
+            idleYOffset = -30f;
+
+            moveSpriteWidth = 120f;
+            moveSpriteHeight = 96f;
+            moveYOffset = -18f;
+
+            attackSpriteWidth = 190f;
+            attackSpriteHeight = 130f;
+            attackYOffset = -30f;
+
+            deathSpriteWidth = 150f;
+            deathSpriteHeight = 100f;
+            deathYOffset = -18f;
+
+            moveSpeed = 75f;
+            detectionRange = 350f;
+            attackRange = 72f;
+            attackCooldown = 1.2f;
+            attackHitTime = 0.24f;
+
+            maxHealth = 3;
+            health = maxHealth;
+        }
+    }
+
     private void loadTextures() {
 
-        idleTexture = new Texture(
-                "enemy/slime stand.png"
-        );
+        if (enemyType == EnemyType.KNIGHT) {
 
-        moveTexture = new Texture(
-                "enemy/slime walk.png"
-        );
+            idleTexture = new Texture(
+                    "enemy/k_stand.png"
+            );
 
-        attackTexture = new Texture(
-                "enemy/slime attack.png"
-        );
+            moveTexture = new Texture(
+                    "enemy/k_walk.png"
+            );
 
-        deathTexture = new Texture(
-                "enemy/slime_death.png"
-        );
+            attackTexture = new Texture(
+                    "enemy/k_attack.png"
+            );
+
+            deathTexture = null;
+
+        } else if (enemyType == EnemyType.DARK_SLIME) {
+
+            // 이동/공격 시트가 준비되기 전까지 대기 이미지를 공용으로 사용
+            idleTexture = new Texture(
+                    "enemy/dark_slime_idle.png"
+            );
+
+            moveTexture = new Texture(
+                    "enemy/dark_slime_idle.png"
+            );
+
+            attackTexture = new Texture(
+                    "enemy/dark_slime_idle.png"
+            );
+
+            deathTexture = null;
+
+        } else {
+
+            idleTexture = new Texture(
+                    "enemy/slime stand.png"
+            );
+
+            moveTexture = new Texture(
+                    "enemy/slime walk.png"
+            );
+
+            attackTexture = new Texture(
+                    "enemy/slime attack.png"
+            );
+
+            deathTexture = new Texture(
+                    "enemy/slime_death.png"
+            );
+        }
 
         idleTexture.setFilter(
                 TextureFilter.Nearest,
@@ -141,42 +297,58 @@ public class Enemy {
                 TextureFilter.Nearest
         );
 
-        deathTexture.setFilter(
-                TextureFilter.Nearest,
-                TextureFilter.Nearest
-        );
+        if (deathTexture != null) {
+
+            deathTexture.setFilter(
+                    TextureFilter.Nearest,
+                    TextureFilter.Nearest
+            );
+        }
 
     }
 
     private void createAnimations() {
 
+        int idleFrameCount =
+                enemyType == EnemyType.DARK_SLIME
+                        ? 1
+                        : 4;
+
+        int actionFrameCount =
+                enemyType == EnemyType.DARK_SLIME
+                        ? 1
+                        : 6;
+
         idleAnimation = createAnimation(
                 idleTexture,
-                4,
+                idleFrameCount,
                 0.18f,
                 Animation.PlayMode.LOOP_PINGPONG
         );
 
         moveAnimation = createAnimation(
                 moveTexture,
-                6,
+                actionFrameCount,
                 0.12f,
                 Animation.PlayMode.LOOP
         );
 
         attackAnimation = createAnimation(
                 attackTexture,
-                6,
+                actionFrameCount,
                 0.10f,
                 Animation.PlayMode.NORMAL
         );
 
-        deathAnimation = createAnimation(
-                deathTexture,
-                4,
-                0.16f,
-                Animation.PlayMode.NORMAL
-        );
+        if (deathTexture != null) {
+
+            deathAnimation = createAnimation(
+                    deathTexture,
+                    4,
+                    0.16f,
+                    Animation.PlayMode.NORMAL
+            );
+        }
     }
 
     private Animation<TextureRegion> createAnimation(
@@ -331,7 +503,7 @@ public class Enemy {
         attackDamageApplied = false;
 
         System.out.println(
-                "슬라임 공격 시작!"
+                getEnemyName() + " 공격 시작!"
         );
     }
 
@@ -356,13 +528,13 @@ public class Enemy {
             	);
 
                 System.out.println(
-                        "슬라임 공격 적중!"
+                        getEnemyName() + " 공격 적중!"
                 );
 
             } else {
 
                 System.out.println(
-                        "슬라임 공격 빗나감!"
+                        getEnemyName() + " 공격 빗나감!"
                 );
             }
 
@@ -399,7 +571,7 @@ public class Enemy {
             alive = false;
 
             System.out.println(
-                    "슬라임 사라짐!"
+                getEnemyName() + " 사라짐!"
             );
         }
     }
@@ -542,23 +714,34 @@ public class Enemy {
         }
 
         System.out.println(
-                "슬라임 체력: " + health
+                getEnemyName() + " 체력: " + health
         );
 
         // 체력이 0이 되면 사망 애니메이션 시작
         if (health <= 0) {
 
             health = 0;
-            dying = true;
+            if (deathAnimation != null) {
 
-            deathAnimationTime = 0;
+                dying = true;
+                deathAnimationTime = 0;
 
-            // 죽을 때 넉백을 조금 약하게 적용
-            knockbackVelocityX *= 0.7f;
+                // 죽을 때 넉백을 조금 약하게 적용
+                knockbackVelocityX *= 0.7f;
 
-            System.out.println(
-                    "슬라임 사망 애니메이션 시작!"
-            );
+                System.out.println(
+                        getEnemyName()
+                                + " 사망 애니메이션 시작!"
+                );
+
+            } else {
+
+                alive = false;
+
+                System.out.println(
+                        getEnemyName() + " 처치!"
+                );
+            }
         }
     }
 
@@ -676,7 +859,10 @@ public class Enemy {
             );
         }
 
-        if (facingRight) {
+        boolean drawWithoutFlip =
+                facingRight == sourceFacesRight;
+
+        if (drawWithoutFlip) {
 
             spriteBatch.draw(
                     currentFrame,
@@ -771,9 +957,41 @@ public class Enemy {
         return x + collisionWidth / 2;
     }
 
+    private String getEnemyName() {
+
+        if (enemyType == EnemyType.KNIGHT) {
+            return "기사";
+        }
+
+        if (enemyType == EnemyType.DARK_SLIME) {
+            return "검은 슬라임";
+        }
+
+        return "슬라임";
+    }
+
     public boolean isAlive() {
 
         return alive;
+    }
+
+    public int claimGoldReward() {
+
+        if (health > 0 || goldRewardClaimed) {
+            return 0;
+        }
+
+        goldRewardClaimed = true;
+
+        if (enemyType == EnemyType.KNIGHT) {
+            return 20;
+        }
+
+        if (enemyType == EnemyType.DARK_SLIME) {
+            return 30;
+        }
+
+        return 10;
     }
 
     public boolean isAttacking() {
@@ -791,6 +1009,8 @@ public class Enemy {
         idleTexture.dispose();
         moveTexture.dispose();
         attackTexture.dispose();
-        deathTexture.dispose();
+        if (deathTexture != null) {
+            deathTexture.dispose();
+        }
     }
 }
