@@ -104,9 +104,8 @@ public class Player {
     private final float dashCooldown = 0.6f;
 
     // 체력
-    private int maxHealth = 5;
+    private final int maxHealth = 5;
     private int health = maxHealth;
-    private int attackDamage = 1;
     private boolean alive = true;
 
     // 피격 후 무적 시간
@@ -967,33 +966,6 @@ public class Player {
     public float getHealthRatio() {
 
         return (float) health / maxHealth;
-    }
-
-    public int getAttackDamage() {
-
-        return attackDamage;
-    }
-
-    public int getMaxHealth() {
-
-        return maxHealth;
-    }
-
-    public void increaseAttackDamage(int amount) {
-
-        if (amount > 0) {
-            attackDamage += amount;
-        }
-    }
-
-    public void increaseMaxHealth(int amount) {
-
-        if (amount <= 0) {
-            return;
-        }
-
-        maxHealth += amount;
-        health += amount;
     }
 
     public boolean isAttacking() {
