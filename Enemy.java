@@ -94,7 +94,6 @@ public class Enemy {
     private int health;
     private int maxHealth;
     private boolean alive = true;
-    private boolean goldRewardClaimed = false;
 
     // 피격 효과
     private float hitFlashTimer = 0;
@@ -973,25 +972,6 @@ public class Enemy {
     public boolean isAlive() {
 
         return alive;
-    }
-
-    public int claimGoldReward() {
-
-        if (health > 0 || goldRewardClaimed) {
-            return 0;
-        }
-
-        goldRewardClaimed = true;
-
-        if (enemyType == EnemyType.KNIGHT) {
-            return 20;
-        }
-
-        if (enemyType == EnemyType.DARK_SLIME) {
-            return 30;
-        }
-
-        return 10;
     }
 
     public boolean isAttacking() {
