@@ -1,0 +1,41 @@
+.gitkeep
+background/goddess_church_background.png
+background/stage1.png
+background/stage2.png
+background/stage3.png
+boss/fall_fire.png
+boss/fall_float.png
+boss/fall_high.png
+boss/fall_low.png
+boss/fall_mid.png
+enemy/dark_slime_idle.png
+enemy/k_attack.png
+enemy/k_stand.png
+enemy/k_walk.png
+enemy/slime attack.png
+enemy/slime stand.png
+enemy/slime walk.png
+enemy/slime_attack.png
+enemy/slime_death.png
+enemy/slime_move.png
+enemy/slime_walk.png
+music/stage1_bgm.mp3
+player/player_attack.png
+player/player_dash.png
+player/player_idle.png
+player/player_jump.png
+player/player_run.png
+tiles/goddess_church_ground_tile.png
+tiles/goddess_church_phase2_ground_tile.png
+tiles/ground_tile.png
+tiles/platform_tile.png
+tiles/stage2_tile.png
+tiles/tile1.png
+tiles/wood.png
+ui/font-list.fnt
+ui/font-subtitle.fnt
+ui/font-window.fnt
+ui/font.fnt
+ui/uiskin.atlas
+ui/uiskin.json
+ui/uiskin.png
