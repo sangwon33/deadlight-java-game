@@ -46,6 +46,7 @@ public class FallenGod {
     private float attackCooldownTimer = 1f;
 
     private boolean attackHit = false;
+    private float hitFlashTimer = 0f;
 
     private Texture floatTexture;
     private Texture stabHighTexture;
@@ -194,6 +195,7 @@ public class FallenGod {
         }
 
         floatAnimationTime += deltaTime;
+        hitFlashTimer = Math.max(0f, hitFlashTimer - deltaTime);
 
         updateAttackCooldown(deltaTime);
 
@@ -427,6 +429,7 @@ public class FallenGod {
         }
 
         health -= damage;
+        hitFlashTimer = 0.16f;
 
         System.out.println(
                 "Fallen God 체력: " + health
@@ -506,6 +509,10 @@ public class FallenGod {
                         + currentYOffset
                         + floatingOffset;
 
+        if (hitFlashTimer > 0f) {
+            spriteBatch.setColor(1f, 0.45f, 0.45f, 1f);
+        }
+
         if (facingRight) {
 
             spriteBatch.draw(
@@ -526,6 +533,7 @@ public class FallenGod {
                     currentHeight
             );
         }
+        spriteBatch.setColor(1f, 1f, 1f, 1f);
     }
 
     public Rectangle getBounds() {

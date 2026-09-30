@@ -161,7 +161,7 @@ public class Enemy {
             detectionRange = 390f;
             attackRange = 92f;
             attackCooldown = 1.4f;
-            attackHitTime = 0.30f;
+            attackHitTime = 0.24f;
 
             maxHealth = 5;
             health = maxHealth;
@@ -191,7 +191,7 @@ public class Enemy {
             detectionRange = 380f;
             attackRange = 90f;
             attackCooldown = 1.3f;
-            attackHitTime = 0.30f;
+            attackHitTime = 0.20f;
 
             maxHealth = 4;
             health = maxHealth;
@@ -221,7 +221,7 @@ public class Enemy {
             detectionRange = 350f;
             attackRange = 72f;
             attackCooldown = 1.2f;
-            attackHitTime = 0.24f;
+            attackHitTime = 0.20f;
 
             maxHealth = 3;
             health = maxHealth;
@@ -248,7 +248,7 @@ public class Enemy {
 
         } else if (enemyType == EnemyType.DARK_SLIME) {
 
-            // 이동/공격 시트가 준비되기 전까지 대기 이미지를 공용으로 사용
+            // 이동 시트가 준비되기 전까지 대기 이미지를 공용으로 사용
             idleTexture = new Texture(
                     "enemy/dark_slime_idle.png"
             );
@@ -258,7 +258,7 @@ public class Enemy {
             );
 
             attackTexture = new Texture(
-                    "enemy/dark_slime_idle.png"
+                    "enemy/dark_slime_attack_idle.png"
             );
 
             deathTexture = null;
@@ -319,6 +319,11 @@ public class Enemy {
                         ? 1
                         : 6;
 
+        int attackFrameCount =
+                enemyType == EnemyType.DARK_SLIME
+                        ? 4
+                        : 6;
+
         idleAnimation = createAnimation(
                 idleTexture,
                 idleFrameCount,
@@ -335,7 +340,7 @@ public class Enemy {
 
         attackAnimation = createAnimation(
                 attackTexture,
-                actionFrameCount,
+                attackFrameCount,
                 0.10f,
                 Animation.PlayMode.NORMAL
         );
@@ -519,17 +524,15 @@ public class Enemy {
         if (!attackDamageApplied
                 && attackAnimationTime >= attackHitTime) {
 
-            if (distanceX <= attackRange
+            // 공격을 시작한 뒤 플레이어가 조금 움직여도 공격이 닿도록
+            // 시작 거리보다 판정 거리를 약간 넓게 잡는다.
+            if (distanceX <= attackRange + 35f
                     && distanceY < collisionHeight) {
-
-            	player.takeDamage(
-            	        1,
-            	        getCenterX()
-            	);
-
-                System.out.println(
-                        getEnemyName() + " 공격 적중!"
-                );
+                int healthBeforeHit = player.getHealth();
+                player.takeDamage(1, getCenterX());
+                if (player.getHealth() < healthBeforeHit) {
+                    System.out.println(getEnemyName() + " 공격 적중!");
+                }
 
             } else {
 
@@ -975,22 +978,18 @@ public class Enemy {
         return alive;
     }
 
-    public int claimGoldReward() {
+    public int getHealth() {
+        return health;
+    }
 
+    /** 체력이 0이 되는 순간 한 번만 골드를 지급한다. 사망 애니메이션과 무관하다. */
+    public int claimGoldReward() {
         if (health > 0 || goldRewardClaimed) {
             return 0;
         }
-
         goldRewardClaimed = true;
-
-        if (enemyType == EnemyType.KNIGHT) {
-            return 20;
-        }
-
-        if (enemyType == EnemyType.DARK_SLIME) {
-            return 30;
-        }
-
+        if (enemyType == EnemyType.KNIGHT) return 20;
+        if (enemyType == EnemyType.DARK_SLIME) return 30;
         return 10;
     }
 

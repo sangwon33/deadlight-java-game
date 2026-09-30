@@ -106,8 +106,9 @@ public class Player {
     // 체력
     private int maxHealth = 5;
     private int health = maxHealth;
-    private int attackDamage = 1;
     private boolean alive = true;
+    private int attackUpgradeLevel = 0;
+    private float attackPotionTimer = 0f;
 
     // 피격 후 무적 시간
     private float invincibleTimer = 0;
@@ -284,6 +285,9 @@ public class Player {
             ArrayList<Rectangle> platforms,
             float worldWidth) {
 
+        if (attackPotionTimer > 0f) {
+            attackPotionTimer = Math.max(0f, attackPotionTimer - deltaTime);
+        }
         updateInvincibility(deltaTime);
         updateHitFlash(deltaTime);
         updateDashCooldown(deltaTime);
@@ -969,31 +973,50 @@ public class Player {
         return (float) health / maxHealth;
     }
 
-    public int getAttackDamage() {
-
-        return attackDamage;
+    public int getHealth() {
+        return health;
     }
 
     public int getMaxHealth() {
-
         return maxHealth;
     }
 
-    public void increaseAttackDamage(int amount) {
-
-        if (amount > 0) {
-            attackDamage += amount;
-        }
+    public int getAttackDamage() {
+        return 1 + attackUpgradeLevel + (attackPotionTimer > 0f ? 3 : 0);
     }
 
-    public void increaseMaxHealth(int amount) {
+    public float getAttackPotionTimer() {
+        return attackPotionTimer;
+    }
 
-        if (amount <= 0) {
-            return;
+    public void upgradeAttack() {
+        attackUpgradeLevel++;
+    }
+
+    public void upgradeMaxHealth() {
+        maxHealth += 10;
+        health += 10;
+    }
+
+    public boolean heal(int amount) {
+        if (!alive || health >= maxHealth) {
+            return false;
         }
+        health = Math.min(maxHealth, health + amount);
+        return true;
+    }
 
-        maxHealth += amount;
-        health += amount;
+    public void drinkAttackPotion() {
+        // 새 포션을 사용하면 10초로 갱신하며 효과를 중첩하지 않는다.
+        attackPotionTimer = 10f;
+    }
+
+    public void restoreRunStats(int attackLevels, int healthLevels,
+                                int savedHealth, float potionTime) {
+        attackUpgradeLevel = attackLevels;
+        maxHealth = 5 + healthLevels * 10;
+        health = Math.max(1, Math.min(maxHealth, savedHealth));
+        attackPotionTimer = Math.max(0f, potionTime);
     }
 
     public boolean isAttacking() {
