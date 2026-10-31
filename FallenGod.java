@@ -1,6 +1,10 @@
 package com.example.pixelgame;
 
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Pixmap;
+import java.util.IdentityHashMap;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -10,6 +14,9 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 
 public class FallenGod {
+    public int getHealth() { return health; }
+    public int getMaxHealth() { return MAX_HEALTH; }
+
 
     private enum State {
         FLOAT,
@@ -44,9 +51,10 @@ public class FallenGod {
     private float floatAnimationTime = 0f;
     private float stateTime = 0f;
     private float attackCooldownTimer = 1f;
+    private static final float WINDUP = .35f;
+    private float windupTimer;
 
     private boolean attackHit = false;
-    private float hitFlashTimer = 0f;
 
     private Texture floatTexture;
     private Texture stabHighTexture;
@@ -59,6 +67,7 @@ public class FallenGod {
     private Animation<TextureRegion> stabMidAnimation;
     private Animation<TextureRegion> stabLowAnimation;
     private Animation<TextureRegion> fireSlashAnimation;
+    private final IdentityHashMap<TextureRegion, Float> floatFootRatios = new IdentityHashMap<>();
 
     public FallenGod(
             float startX,
@@ -147,6 +156,11 @@ public class FallenGod {
                 0.11f,
                 Animation.PlayMode.NORMAL
         );
+        Pixmap pixels = new Pixmap(Gdx.files.internal("boss/fall_float.png"));
+        try {
+            for (TextureRegion frame : floatAnimation.getKeyFrames())
+                floatFootRatios.put(frame, FrameContent.footFromBottom(pixels, frame) / (float)frame.getRegionHeight());
+        } finally { pixels.dispose(); }
     }
 
     private Animation<TextureRegion> createAnimation(
@@ -195,14 +209,13 @@ public class FallenGod {
         }
 
         floatAnimationTime += deltaTime;
-        hitFlashTimer = Math.max(0f, hitFlashTimer - deltaTime);
 
         updateAttackCooldown(deltaTime);
 
-        facingRight =
-                player.getCenterX() > getCenterX();
-
         if (state == State.FLOAT) {
+
+            // Commit to the telegraphed direction until this attack finishes.
+            facingRight = player.getCenterX() > getCenterX();
 
             followPlayer(deltaTime, player);
             tryStartAttack(player);
@@ -307,12 +320,17 @@ public class FallenGod {
 
         stateTime = 0f;
         attackHit = false;
+        windupTimer = WINDUP;
     }
 
     private void updateAttack(
             float deltaTime,
             Player player) {
 
+        if (windupTimer > 0) {
+            windupTimer = Math.max(0, windupTimer - deltaTime);
+            return;
+        }
         stateTime += deltaTime;
 
         Animation<TextureRegion> animation =
@@ -429,7 +447,6 @@ public class FallenGod {
         }
 
         health -= damage;
-        hitFlashTimer = 0.16f;
 
         System.out.println(
                 "Fallen God 체력: " + health
@@ -487,11 +504,21 @@ public class FallenGod {
 
         case FLOAT:
         default:
-            currentWidth = 150f;
+            currentWidth = currentFrame.getRegionWidth() * 250f / currentFrame.getRegionHeight();
             currentHeight = 250f;
-            currentYOffset = -50f;
+            currentYOffset = -currentHeight * floatFootRatios.get(currentFrame);
             break;
     }
+
+        if (state != State.FLOAT) {
+            String asset = state == State.STAB_HIGH ? "boss/fall_high.png"
+                    : state == State.STAB_MID ? "boss/fall_mid.png"
+                    : state == State.STAB_LOW ? "boss/fall_low.png" : "boss/fall_fire.png";
+            AttackSheetLayout layout = AttackSheetLayout.get(asset);
+            currentWidth = layout.width;
+            currentHeight = layout.height;
+            currentYOffset = -layout.foot;
+        }
 
         float floatingOffset =
                 MathUtils.sin(
@@ -508,10 +535,6 @@ public class FallenGod {
                 y
                         + currentYOffset
                         + floatingOffset;
-
-        if (hitFlashTimer > 0f) {
-            spriteBatch.setColor(1f, 0.45f, 0.45f, 1f);
-        }
 
         if (facingRight) {
 
@@ -533,7 +556,6 @@ public class FallenGod {
                     currentHeight
             );
         }
-        spriteBatch.setColor(1f, 1f, 1f, 1f);
     }
 
     public Rectangle getBounds() {
@@ -682,6 +704,52 @@ public class FallenGod {
 
         return alive &&
                 state != State.FLOAT;
+    }
+
+    public float getWarningSeconds() {
+        if (!alive || state == State.FLOAT) return 0;
+        return Math.max(0, windupTimer + (state == State.FIRE_SLASH ? .44f : .39f) - stateTime);
+    }
+
+    public String getWarningLabel() {
+        if (getWarningSeconds() <= 0) return "";
+        String height = switch (state) {
+            case STAB_HIGH -> "HIGH STRIKE";
+            case STAB_MID -> "MID STRIKE";
+            case STAB_LOW -> "LOW STRIKE";
+            default -> "FIRE SWEEP";
+        };
+        return height + (facingRight ? "  >" : "  <");
+    }
+
+    /** Preview the same rectangle used for damage, with a label as well as color. */
+    public void drawTelegraph(ShapeRenderer s) {
+        float warning = getWarningSeconds();
+        if (warning <= 0) return;
+        Rectangle r = getAttackBounds();
+        boolean blend = Gdx.gl.glIsEnabled(GL20.GL_BLEND);
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        float red = state == State.FIRE_SLASH ? .8f : 1f;
+        float green = state == State.STAB_HIGH ? .78f : state == State.STAB_MID ? .48f : .28f;
+        float blue = state == State.FIRE_SLASH ? .85f : .22f;
+        s.begin(ShapeRenderer.ShapeType.Filled);
+        s.setColor(red, green, blue, .08f);
+        s.rect(r.x, r.y, r.width, r.height);
+        s.setColor(red, green, blue, .85f);
+        for (float x = 0; x < r.width; x += 16) {
+            float width = Math.min(9, r.width - x);
+            s.rect(r.x + x, r.y, width, 1.2f);
+            s.rect(r.x + x, r.y + r.height - 1.2f, width, 1.2f);
+        }
+        s.rect(r.x, r.y, 1.2f, r.height);
+        s.rect(r.x + r.width - 1.2f, r.y, 1.2f, r.height);
+        float cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+        float dir = facingRight ? 1 : -1;
+        s.rectLine(cx - dir * 12, cy, cx + dir * 12, cy, 2);
+        s.triangle(cx + dir * 18, cy, cx + dir * 7, cy - 6, cx + dir * 7, cy + 6);
+        s.end();
+        if (!blend) Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
     public void dispose() {

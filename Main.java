@@ -13,6 +13,7 @@ import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.Preferences;
 
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
@@ -48,6 +49,11 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 
 
 public class Main extends ApplicationAdapter {
+
+    // Development overlay only; combat collision checks run independently.
+    private static final boolean DEBUG_ATTACK_BOUNDS = false;
+    private final CombatFeedback feedback = new CombatFeedback();
+    private Sound combatHitSound, playerHurtSound;
 
 
 
@@ -98,34 +104,12 @@ public class Main extends ApplicationAdapter {
     private GameMode gameMode = GameMode.MENU;
 
     private MenuPage menuPage = MenuPage.MAIN;
-    private boolean settingsFromPause = false;
-    private boolean confirmExit = false;
-    private int highestUnlockedStage = STAGE_ONE;
-    private float musicVolume = 0.25f;
-    private float effectsVolume = 0.7f;
-    private boolean screenShakeEnabled = true;
-    private float shakeTimer = 0f;
-    private float shakeStrength = 0f;
-    private float bannerTimer = 0f;
-    private String bannerText = "";
-    private float potionEffectTimer = 0f;
-    private int lastPlayerHealth = -1;
-    private int windowWidth = 1280, windowHeight = 720;
-    private Sound hitSound, buySound, potionSound;
-    private static class FloatingText {
-        float x, y, life = 1f;
-        String label;
-        FloatingText(String label, float x, float y) {
-            this.label = label; this.x = x; this.y = y;
-        }
-    }
-    private final ArrayList<FloatingText> floatingTexts = new ArrayList<>();
 
 
 
     private static final int ATTACK_PRICE = 50;
 
-    private static final int HEALTH_PRICE = 50;
+    private static final int HEALTH_PRICE = 40;
 
     private static final int HEAL_POTION_PRICE = 20;
 
@@ -161,11 +145,7 @@ public class Main extends ApplicationAdapter {
 
     private float merchantAnimationTime = 0f;
 
-    // 스테이지 1 시작 구간에 표시되는 조작 튜토리얼
-    private boolean attackTutorialDone = false;
-    private boolean dashTutorialDone = false;
-    private boolean inventoryTutorialDone = false;
-    private float tutorialFloatTime = 0f;
+
 
 
 
@@ -213,7 +193,39 @@ public class Main extends ApplicationAdapter {
 
     private ShapeRenderer shapeRenderer;
 
-    private SpriteBatch spriteBatch;
+    private ReadabilityBatch spriteBatch;
+    private GameHud gameHud;
+    private UiTheme uiTheme;
+    private InventoryView inventoryView;
+    private String inventoryMessage = "";
+    private float inventoryMessageTimer;
+    private boolean inventoryMessageSuccess;
+    private int previewStage = 1;
+    private JourneyView journeyView;
+    private final TutorialGuide tutorial = new TutorialGuide();
+    private RunStats runStats = new RunStats();
+    private ClearRecords clearRecords;
+    private StageCheckpoint checkpoint, retryCheckpoint;
+    private RunStats retryStats;
+    private int retryTutorialStep = TutorialGuide.LESSON_COUNT;
+    private ShopView shopView;
+    private ResultView resultView;
+    private RewardView rewardView;
+    private final ArrayList<StageReward> runRewards = new ArrayList<>();
+    private boolean rewardOpen;
+    private int rewardSelection, rewardDestination, resultPage;
+    private String rewardStageMessage;
+    private PauseView pauseView;
+    private final GameControls gameControls = new GameControls();
+    private int pendingPauseAction;
+    private static final boolean DEBUG_STAGE_SKIP = Boolean.getBoolean("deadlight.debug");
+    private RunResult lastResult;
+    private int runDefeated, runGoldEarned;
+    private final StageTransition stageTransition = new StageTransition();
+    private int pendingStage;
+    private String pendingStageMessage;
+    private boolean shopMessageSuccess;
+    private int shopLastPurchase = -1;
 
 
 
@@ -266,6 +278,9 @@ public class Main extends ApplicationAdapter {
     private Music backgroundMusic;
 
     private boolean musicMuted = false;
+    private Preferences preferences;
+    private float musicVolume = .25f, effectsVolume = .5f;
+    private boolean showScreenControls = true;
 
 
 
@@ -294,12 +309,20 @@ public class Main extends ApplicationAdapter {
 
 
     private boolean bossHitThisAttack = false;
+    private final HashSet<Enemy> enemiesHitThisSkill = new HashSet<>();
+    private boolean bossHitThisSkill;
+    private final ShockSlashView shockSlashView = new ShockSlashView();
 
 
 
     @Override
 
     public void create() {
+        preferences = Gdx.app.getPreferences("deadlight.settings");
+        musicVolume = MathUtils.clamp(preferences.getFloat("musicVolume", .25f), 0, 1);
+        effectsVolume = MathUtils.clamp(preferences.getFloat("effectsVolume", .5f), 0, 1);
+        musicMuted = preferences.getBoolean("musicMuted", false);
+        showScreenControls = preferences.getBoolean("showScreenControls", true);
 
 
 
@@ -321,7 +344,16 @@ public class Main extends ApplicationAdapter {
 
         shapeRenderer = new ShapeRenderer();
 
-        spriteBatch = new SpriteBatch();
+        spriteBatch = new ReadabilityBatch();
+        gameHud = new GameHud();
+        uiTheme = new UiTheme();
+        inventoryView = new InventoryView(uiTheme);
+        journeyView = new JourneyView(uiTheme);
+        clearRecords = new ClearRecords(Gdx.app.getPreferences("deadlight.records"));
+        shopView = new ShopView();
+        resultView = new ResultView();
+        rewardView = new RewardView(uiTheme);
+        pauseView = new PauseView();
 
         uiFont = new BitmapFont();
 
@@ -338,17 +370,14 @@ public class Main extends ApplicationAdapter {
         loadMainMenuTextures();
 
         loadBackgroundMusic();
-        hitSound = optionalSound("music/hit.wav");
-        buySound = optionalSound("music/buy.wav");
-        potionSound = optionalSound("music/potion.wav");
+        combatHitSound = Gdx.audio.newSound(Gdx.files.internal("audio/combat_hit.wav"));
+        playerHurtSound = Gdx.audio.newSound(Gdx.files.internal("audio/player_hurt.wav"));
 
 
 
         createPlatforms();
 
         createGameObjects();
-
-        lastPlayerHealth = player.getHealth();
 
 
 
@@ -683,7 +712,7 @@ public class Main extends ApplicationAdapter {
 
         backgroundMusic.setLooping(true);
 
-        backgroundMusic.setVolume(musicVolume);
+        applyMusicVolume();
 
         backgroundMusic.play();
 
@@ -692,6 +721,7 @@ public class Main extends ApplicationAdapter {
 
 
     private void createGameObjects() {
+        enemiesHitThisSkill.clear(); bossHitThisSkill = false;
 
 
 
@@ -933,7 +963,8 @@ public class Main extends ApplicationAdapter {
 
         // 새 스테이지에서도 이전 강화/체력/버프를 이어받는다.
 
-        player.restoreRunStats(attackLevels, healthLevels, savedHealth, savedBuffTime);
+        player.restoreRunStats(attackLevels, healthLevels, savedHealth, savedBuffTime, rewardHealthBonus());
+        feedback.reset(player.getHealthRatio());
 
     }
 
@@ -1066,227 +1097,134 @@ public class Main extends ApplicationAdapter {
 
 
     @Override
-
     public void render() {
-
-
-
-        float deltaTime = Math.min(
-
-                Gdx.graphics.getDeltaTime(),
-
-                1f / 30f
-
-        );
-
-
-
+        float deltaTime = Math.min(Gdx.graphics.getDeltaTime(), 1f / 30f);
+        if (gameMode == GameMode.PLAYING)
+            inventoryMessageTimer = Math.max(0, inventoryMessageTimer - deltaTime);
         if (gameMode == GameMode.PAUSED) {
-            updatePausedInput();
-            if (gameMode == GameMode.PAUSED) {
-                drawGame();
-                drawPauseOverlay();
-            } else if (gameMode == GameMode.MENU) drawMenuScreen();
-            else drawGame();
+            updatePauseInput();
         } else if (gameMode == GameMode.PLAYING) {
-
-            if (shopOpen) updateShopInput(deltaTime);
-
-            else if (inventoryOpen) updateInventoryInput();
-
-            else updateGame(deltaTime);
-
-            if (gameMode == GameMode.PLAYING) {
-
-                updateCamera();
-
-                drawGame();
-
-            } else if (gameMode == GameMode.PAUSED) {
-                drawGame();
-                drawPauseOverlay();
-            } else {
-                drawMenuScreen();
+            if (!shopOpen && !inventoryOpen && !rewardOpen && !stageTransition.active()) {
+                feedback.update(Math.min(Gdx.graphics.getDeltaTime(), .1f), player.getHealthRatio());
             }
+            if (stageTransition.active()) {
+                if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) pauseGame();
+                else advanceStageTransition(Math.min(Gdx.graphics.getDeltaTime(), .1f));
+            } else if (rewardOpen) updateRewardInput();
+            else if (shopOpen) updateShopInput(deltaTime);
+            else if (inventoryOpen) updateInventoryInput();
+            else updateGame(deltaTime);
+        } else updateMenuInput();
 
-        } else {
-
-            updateMenuInput();
-
-            if (gameMode == GameMode.PAUSED) {
-                drawGame();
-                drawPauseOverlay();
-            } else if (gameMode == GameMode.PLAYING) drawGame();
-            else drawMenuScreen();
-
-        }
-
+        if (gameMode == GameMode.PLAYING || gameMode == GameMode.PAUSED) {
+            if (gameMode == GameMode.PLAYING) updateCamera();
+            drawGame();
+            if (gameMode == GameMode.PAUSED) drawPause();
+        } else drawMenuScreen();
     }
 
+    private void pauseGame() {
+        player.clearActionInput();
+        pendingPauseAction = 0;
+        gameMode = GameMode.PAUSED;
+    }
 
+    private void applyPauseAction(int row) {
+        if (pendingPauseAction != 0) {
+            if (row == 0) pendingPauseAction = 0;
+            else if (row == 1) {
+                int action = pendingPauseAction;
+                pendingPauseAction = 0;
+                if (action == 1) restartGame(); else returnToMainMenu();
+            }
+        } else if (row == 0) gameMode = GameMode.PLAYING;
+        else if (row == 1) pendingPauseAction = 1;
+        else if (row == 2) pendingPauseAction = 2;
+    }
+
+    private void updatePauseInput() {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            if (pendingPauseAction != 0) pendingPauseAction = 0;
+            else gameMode = GameMode.PLAYING;
+            return;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+            applyPauseAction(pendingPauseAction == 0 ? 0 : 1);
+            return;
+        }
+        if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) return;
+        for (int row = 0; row < (pendingPauseAction == 0 ? 3 : 2); row++) {
+            if (isMouseInside(PauseView.buttonBounds(screenLeft(), row))) {
+                applyPauseAction(row); return;
+            }
+        }
+    }
+
+    private void drawPause() {
+        int hovered = -1;
+        for (int row = 0; row < (pendingPauseAction == 0 ? 3 : 2); row++) {
+            if (isMouseInside(PauseView.buttonBounds(screenLeft(), row))) hovered = row;
+        }
+        spriteBatch.begin();
+        pauseView.draw(spriteBatch, uiFont, screenLeft(), pendingPauseAction, hovered,
+                Gdx.input.isButtonPressed(Input.Buttons.LEFT));
+        spriteBatch.end();
+    }
 
     private void updateGame(float deltaTime) {
-        bannerTimer = Math.max(0f, bannerTimer - deltaTime);
-        potionEffectTimer = Math.max(0f, potionEffectTimer - deltaTime);
-        shakeTimer = Math.max(0f, shakeTimer - deltaTime);
-        for (int i = floatingTexts.size() - 1; i >= 0; i--) {
-            FloatingText item = floatingTexts.get(i);
-            item.y += 23f * deltaTime;
-            item.life -= deltaTime;
-            if (item.life <= 0f) floatingTexts.remove(i);
-        }
-
-
-
         updateMusicInput();
-
-        if (currentStage == STAGE_ONE) {
-
-            tutorialFloatTime += deltaTime;
-
-            if (Gdx.input.isKeyJustPressed(Input.Keys.J)) {
-                attackTutorialDone = true;
-            }
-
-            if (Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT) ||
-                    Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_RIGHT)) {
-                dashTutorialDone = true;
-            }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) ||
+                (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) && isMouseInside(GameHud.pauseBounds(screenLeft())))) {
+            pauseGame(); return;
         }
-
-
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-
-            gameMode = GameMode.PAUSED;
-            confirmExit = false;
-
-            return;
-
+        if (Gdx.input.isKeyJustPressed(Input.Keys.I) ||
+                (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) && isMouseInside(GameHud.inventoryBounds(screenLeft())))) {
+            player.clearActionInput(); inventoryOpen = true; return;
         }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.I)) {
-
-            if (currentStage == STAGE_ONE) {
-                inventoryTutorialDone = true;
-            }
-
-            inventoryOpen = true;
-
-            return;
-
+        if (currentStage == STAGE_ONE && tutorial.visible() && !tutorial.finished()
+                && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
+                && isMouseInside(JourneyView.skipBounds(screenLeft()))) {
+            tutorial.skip(); return;
         }
-
         merchantAnimationTime += deltaTime;
-
-        if (isNearMerchant() &&
-
-                (Gdx.input.isKeyJustPressed(Input.Keys.E) ||
-
-                 (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) &&
-
-                  isMouseInside(merchantIconBounds())))) {
-
-            shopOpen = true;
-
-            shopMessage = "";
-
-            shopMessageTimer = 0f;
-
-            return;
-
+        if (isNearMerchant() && (Gdx.input.isKeyJustPressed(Input.Keys.E) ||
+                (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) && isMouseInside(merchantIconBounds())))) {
+            player.clearActionInput(); shopOpen = true; shopMessage = ""; shopMessageTimer = 0; return;
         }
-
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) useHealPotion();
-
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) useAttackPotion();
-
-
-
-        player.update(
-
-                deltaTime,
-
-                platforms,
-
-                getCurrentWorldWidth()
-
-        );
-        if (lastPlayerHealth >= 0 && player.getHealth() < lastPlayerHealth) {
-            addFloating("-" + (lastPlayerHealth - player.getHealth()),
-                    player.getCenterX(), player.getY() + 90f);
-            shake(5f);
-            playSound(hitSound);
+        // Stopwatch uses real active frame time, independent of the physics delta clamp.
+        runStats.advance(Gdx.graphics.getDeltaTime());
+        if (showScreenControls) gameControls.update(player);
+        else player.setScreenInput(false, false, false, false, false);
+        player.captureActionInput();
+        if (feedback.stopped()) return;
+        int healthBeforeCombat = player.getHealth();
+        int interruptionsBeforeCombat = player.getInterruptedSkillCount();
+        int attacksBefore = player.getAttackCount(), skillsBefore = player.getSkillCount(), dashesBefore = player.getDashCount();
+        player.update(deltaTime, platforms, getCurrentWorldWidth());
+        runStats.actions(player.getAttackCount() - attacksBefore, player.getSkillCount() - skillsBefore,
+                player.getDashCount() - dashesBefore);
+        for (Enemy enemy : enemies) enemy.update(deltaTime, player, getCurrentWorldWidth());
+        if (fallenGod != null && fallenGod.isAlive()) fallenGod.update(deltaTime, player);
+        int damageTaken = healthBeforeCombat - player.getHealth();
+        if (damageTaken > 0) {
+            runStats.damage(damageTaken);
+            feedback.hit(player.getCenterX(), player.getY() + 35, damageTaken, true);
+            feedback.health(player.getHealthRatio());
+            playerHurtSound.play(effectsVolume * .6f);
         }
-        lastPlayerHealth = player.getHealth();
-
-
-
-        for (Enemy enemy : enemies) {
-
-
-
-            enemy.update(
-
-                    deltaTime,
-
-                    player
-
-            );
-
-        }
-
-
-
-        if (fallenGod != null &&
-
-                fallenGod.isAlive()) {
-
-
-
-            fallenGod.update(
-
-                    deltaTime,
-
-                    player
-
-            );
-
-        }
-
-
-
+        if (player.getInterruptedSkillCount() > interruptionsBeforeCombat) feedback.skillInterrupted();
         checkPlayerAttack();
-
+        checkSkillAttack();
+        if (currentStage == STAGE_ONE) tutorial.update(player, deltaTime);
         for (Enemy enemy : enemies) {
             int reward = enemy.claimGoldReward();
-            if (reward > 0) {
-                gold += reward;
-                addFloating("+" + reward + "G", enemy.getBounds().x,
-                        enemy.getBounds().y + 65f);
-            }
+            if (reward > 0) { gold += reward; runGoldEarned += reward; runDefeated++; }
         }
-
-
-
-        if (!player.isAlive()) {
-
-            finishRun(GameMode.GAME_OVER);
-
-            return;
-
-        }
-
-        if (fallenGod != null && !fallenGod.isAlive()) {
-
-            finishRun(GameMode.CLEARED);
-
-            return;
-
-        }
-
+        if (!player.isAlive()) { finishRun(GameMode.GAME_OVER); return; }
+        if (fallenGod != null && !fallenGod.isAlive()) { finishRun(GameMode.CLEARED); return; }
         checkStageChange();
-
     }
 
 
@@ -1317,8 +1255,7 @@ public class Main extends ApplicationAdapter {
 
 
 
-        boolean testKeyPressed =
-
+        boolean testKeyPressed = DEBUG_STAGE_SKIP &&
                 Gdx.input.isKeyJustPressed(
 
                         Input.Keys.N
@@ -1375,59 +1312,77 @@ public class Main extends ApplicationAdapter {
 
 
 
-    private void changeStage(
+    private void changeStage(int nextStage, String startMessage) {
+        if (stageTransition.active() || rewardOpen) return;
+        for (StageReward reward : runRewards) if (reward.stage() == currentStage) {
+            beginStageTransition(nextStage, startMessage); return;
+        }
+        rewardOpen = true; rewardSelection = 0;
+        rewardDestination = nextStage; rewardStageMessage = startMessage;
+        player.clearActionInput();
+    }
 
-            int nextStage,
+    private int rewardHealthBonus() {
+        int bonus = 0;
+        for (StageReward reward : runRewards) if (reward.kind() == StageReward.Kind.FORTIFY) bonus += GameBalance.CLEAR_HEALTH;
+        return bonus;
+    }
 
-            String startMessage) {
+    private void updateRewardInput() {
+        updateMusicInput();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) { pauseGame(); return; }
+        for (int i = 0; i < 3; i++) if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1 + i)) rewardSelection = i;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.LEFT) || Gdx.input.isKeyJustPressed(Input.Keys.A)) rewardSelection = (rewardSelection + 2) % 3;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT) || Gdx.input.isKeyJustPressed(Input.Keys.D)) rewardSelection = (rewardSelection + 1) % 3;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) { confirmReward(); return; }
+        if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) return;
+        for (int i = 0; i < 3; i++) if (isMouseInside(RewardView.cardBounds(screenLeft(), i))) { rewardSelection = i; return; }
+        if (isMouseInside(RewardView.continueBounds(screenLeft()))) confirmReward();
+    }
 
+    private void confirmReward() {
+        if (!rewardOpen || gameMode != GameMode.PLAYING || !player.isAlive()) return;
+        StageReward.Kind kind = StageReward.Kind.values()[rewardSelection];
+        String detail;
+        if (kind == StageReward.Kind.REST) {
+            if (player.getHealth() == player.getMaxHealth()) { healPotions++; detail = "+1 HEAL POTION"; }
+            else {
+                int before = player.getHealth(); player.heal(player.getMaxHealth());
+                detail = "HP " + before + "/" + player.getMaxHealth() + " -> " + player.getHealth() + "/" + player.getMaxHealth();
+            }
+        } else if (kind == StageReward.Kind.GOLD) {
+            gold += GameBalance.CLEAR_GOLD; runGoldEarned += GameBalance.CLEAR_GOLD;
+            detail = "+" + GameBalance.CLEAR_GOLD + " GOLD";
+        } else { player.fortifyFromReward(); detail = "+" + GameBalance.CLEAR_HEALTH + " MAX HP"; }
+        runRewards.add(new StageReward(currentStage, kind, detail)); runStats.clearRegion();
+        rewardOpen = false; player.clearActionInput();
+        beginStageTransition(rewardDestination, rewardStageMessage);
+        rewardDestination = 0; rewardStageMessage = null;
+    }
 
+    private void beginStageTransition(int nextStage, String startMessage) {
+        pendingStage = nextStage;
+        pendingStageMessage = startMessage;
+        stageTransition.begin(nextStage, true);
+    }
 
-        savedHealth = player.getHealth();
+    private void advanceStageTransition(float delta) {
+        if (stageTransition.update(delta) && pendingStage != 0) {
+            enterStage(pendingStage, pendingStageMessage);
+            pendingStage = 0;
+            pendingStageMessage = null;
+        }
+    }
 
-        savedBuffTime = player.getAttackPotionTimer();
-
-        disposeGameObjects();
-
-
-
-        currentStage = nextStage;
-        highestUnlockedStage = Math.max(highestUnlockedStage, nextStage);
-        showBanner("STAGE CLEAR  /  " + stageName(nextStage));
-
-
-
-        selectStageTextures();
-
-        createPlatforms();
-
-        createGameObjects();
-        lastPlayerHealth = player.getHealth();
-
-
-
-        camera.position.set(
-
-                VIEW_WIDTH / 2f,
-
-                WORLD_HEIGHT / 2f,
-
-                0f
-
-        );
-
-
-
-        camera.update();
-
-
-
-        System.out.println(
-
-                startMessage
-
-        );
-
+    private void enterStage(int nextStage, String startMessage) {
+        savedHealth = player.getHealth(); savedBuffTime = player.getAttackPotionTimer();
+        disposeGameObjects(); currentStage = nextStage;
+        runStats.enterStage(nextStage);
+        selectStageTextures(); createPlatforms(); createGameObjects();
+        camera.position.set(VIEW_WIDTH / 2, WORLD_HEIGHT / 2, 0); camera.update();
+        tutorial.bind(player, TutorialGuide.LESSON_COUNT);
+        captureCheckpoint();
+        System.out.println(startMessage);
     }
 
 
@@ -1452,11 +1407,9 @@ public class Main extends ApplicationAdapter {
 
 
 
-        backgroundMusic.setVolume(
-
-                musicMuted ? 0f : musicVolume
-
-        );
+        if (!musicMuted && musicVolume == 0) musicVolume = .25f;
+        applyMusicVolume();
+        saveSettings();
 
 
 
@@ -1483,42 +1436,30 @@ public class Main extends ApplicationAdapter {
 
 
     private void startStage(int stage) {
-
-
-
-        resetRunData();
-
-        disposeGameObjects();
-
-
-
+        resetRunData(); disposeGameObjects();
         currentStage = stage;
-
-        selectStageTextures();
-
-        createPlatforms();
-
-        createGameObjects();
-        lastPlayerHealth = player.getHealth();
-        floatingTexts.clear();
-        showBanner(stageName(stage));
-
-        camera.position.set(VIEW_WIDTH / 2f, WORLD_HEIGHT / 2f, 0f);
-
-        camera.update();
-
+        selectStageTextures(); createPlatforms(); createGameObjects();
+        camera.position.set(VIEW_WIDTH / 2, WORLD_HEIGHT / 2, 0); camera.update();
         gameMode = GameMode.PLAYING;
-
         menuPage = MenuPage.MAIN;
-
+        runStats.reset(stage);
+        tutorial.bind(player, stage == STAGE_ONE ? 0 : TutorialGuide.LESSON_COUNT);
+        captureCheckpoint();
+        stageTransition.begin(stage, false);
     }
 
 
 
     private void resetRunData() {
-        floatingTexts.clear();
-        potionEffectTimer = 0f;
-        shakeTimer = 0f;
+        rewardOpen = false; rewardSelection = rewardDestination = resultPage = 0; rewardStageMessage = null;
+        runRewards.clear();
+        runDefeated = 0;
+        runGoldEarned = 0;
+        stageTransition.reset();
+        pendingPauseAction = 0;
+        pendingStage = 0;
+        pendingStageMessage = null;
+        feedback.reset(1f);
 
         gold = 0;
 
@@ -1537,30 +1478,67 @@ public class Main extends ApplicationAdapter {
         shopOpen = false;
 
         inventoryOpen = false;
+        inventoryMessage = "";
+        inventoryMessageTimer = 0;
 
         shopMessage = "";
 
         shopMessageTimer = 0f;
 
-        attackTutorialDone = false;
-
-        dashTutorialDone = false;
-
-        inventoryTutorialDone = false;
-
-        tutorialFloatTime = 0f;
+        tutorial.skip();
+        runStats.reset(1);
+        checkpoint = retryCheckpoint = null;
+        retryStats = null;
+        retryTutorialStep = TutorialGuide.LESSON_COUNT;
 
     }
 
 
 
     private void finishRun(GameMode result) {
-        if (result == GameMode.CLEARED) highestUnlockedStage = STAGE_GODDESS_CHURCH;
-
+        if (gameMode != GameMode.PLAYING) return;
+        boolean cleared = result == GameMode.CLEARED;
+        if (cleared) runStats.clearRegion();
+        StageCheckpoint savedCheckpoint = checkpoint;
+        RunStats savedStats = runStats.copy();
+        int lesson = tutorial.step();
+        boolean best = cleared && clearRecords.saveClear(runStats.startStage, runStats.seconds, runStats.damageTaken);
+        ClearRecords.Summary record = clearRecords.read(runStats.startStage);
+        lastResult = new RunResult(cleared, currentStage, runDefeated + (cleared ? 1 : 0), runGoldEarned, gold,
+                runStats.seconds, runStats.damageTaken, runStats.potionsUsed, runStats.retries,
+                runStats.startStage, best, record.bestSeconds(), record.clears(),
+                runStats.snapshot(currentStage), runRewards, attackLevels, healthLevels, rewardHealthBonus(),
+                runStats.attacks, runStats.skills, runStats.dashes);
         resetRunData();
-
+        if (!cleared) { retryCheckpoint = savedCheckpoint; retryStats = savedStats; retryTutorialStep = lesson; }
         gameMode = result;
+    }
 
+    private void captureCheckpoint() {
+        checkpoint = new StageCheckpoint(currentStage, gold, attackLevels, healthLevels,
+                healPotions, attackPotions, player.getHealth(), player.getAttackPotionTimer(), runDefeated, runGoldEarned, runRewards);
+    }
+
+    private void retryStage() {
+        if (retryCheckpoint == null) { startStage(lastResult == null ? STAGE_ONE : lastResult.stage()); return; }
+        StageCheckpoint entry = retryCheckpoint;
+        RunStats accumulated = retryStats.copy();
+        int lesson = retryTutorialStep;
+        resetRunData();
+        disposeGameObjects();
+        runStats = accumulated; runStats.retry();
+        currentStage = entry.stage(); gold = entry.gold();
+        attackLevels = entry.attackLevels(); healthLevels = entry.healthLevels();
+        healPotions = entry.heals(); attackPotions = entry.powers();
+        savedHealth = entry.health(); savedBuffTime = entry.buffSeconds();
+        runDefeated = entry.defeated(); runGoldEarned = entry.earned();
+        runRewards.addAll(entry.rewards());
+        selectStageTextures(); createPlatforms(); createGameObjects();
+        checkpoint = entry;
+        tutorial.bind(player, currentStage == STAGE_ONE ? lesson : TutorialGuide.LESSON_COUNT);
+        camera.position.set(VIEW_WIDTH / 2, WORLD_HEIGHT / 2, 0); camera.update();
+        gameMode = GameMode.PLAYING; menuPage = MenuPage.MAIN;
+        stageTransition.begin(currentStage, false);
     }
 
 
@@ -1658,10 +1636,6 @@ public class Main extends ApplicationAdapter {
         camera.position.y =
 
                 WORLD_HEIGHT / 2f;
-        if (shakeTimer > 0f && screenShakeEnabled) {
-            camera.position.x += MathUtils.random(-shakeStrength, shakeStrength);
-            camera.position.y += MathUtils.random(-shakeStrength, shakeStrength);
-        }
 
 
 
@@ -1729,6 +1703,8 @@ public class Main extends ApplicationAdapter {
 
 
 
+        if (!player.isAttackActive()) return;
+
         Rectangle attackBounds =
 
                 player.getAttackBounds();
@@ -1767,15 +1743,14 @@ public class Main extends ApplicationAdapter {
                         player.getCenterX()
 
                 );
-                if (enemy.getHealth() < healthBeforeHit) {
-                    addFloating("-" + (healthBeforeHit - enemy.getHealth()),
-                            enemy.getBounds().x, enemy.getBounds().y + 55f);
-                    shake(2f);
-                    playSound(hitSound);
-                }
 
 
 
+                int dealt = healthBeforeHit - enemy.getHealth();
+                Rectangle enemyBounds = enemy.getBounds();
+                feedback.hit(enemyBounds.x + enemyBounds.width / 2, enemyBounds.y + 35, dealt, false, false,
+                        enemyBounds.y + enemyBounds.height + 14);
+                if (dealt > 0 && feedback.allowImpactSound()) combatHitSound.play(effectsVolume * .46f);
                 enemiesHitThisAttack.add(enemy);
 
             }
@@ -1798,11 +1773,13 @@ public class Main extends ApplicationAdapter {
 
 
 
+            int healthBeforeHit = fallenGod.getHealth();
             fallenGod.takeDamage(player.getAttackDamage());
-            addFloating("-" + player.getAttackDamage(),
-                    fallenGod.getBounds().x, fallenGod.getBounds().y + 95f);
-            shake(4f);
-            playSound(hitSound);
+            int dealt = healthBeforeHit - fallenGod.getHealth();
+            Rectangle bossBounds = fallenGod.getBounds();
+            feedback.hit(bossBounds.x + bossBounds.width / 2, bossBounds.y + 75, dealt, false, false,
+                    Math.min(200, bossBounds.y + bossBounds.height + 14));
+            if (dealt > 0 && feedback.allowImpactSound()) combatHitSound.play(effectsVolume * .46f);
 
             bossHitThisAttack = true;
 
@@ -1811,6 +1788,30 @@ public class Main extends ApplicationAdapter {
     }
 
 
+
+    private void checkSkillAttack() {
+        if (!player.isUsingSkill()) { enemiesHitThisSkill.clear(); bossHitThisSkill = false; return; }
+        if (!player.isSkillActive()) return;
+        Rectangle bounds = player.getSkillBounds();
+        for (Enemy enemy : enemies) {
+            if (enemy.getHealth() <= 0 || enemiesHitThisSkill.contains(enemy) || !bounds.overlaps(enemy.getBounds())) continue;
+            int before = enemy.getHealth();
+            enemy.takeDamage(player.getSkillDamage(), player.getCenterX(), true);
+            int dealt = before - enemy.getHealth();
+            Rectangle body = enemy.getBounds();
+            feedback.hit(body.x + body.width / 2, body.y + 38, dealt, false, true, body.y + body.height + 14);
+            if (dealt > 0 && feedback.allowImpactSound()) combatHitSound.play(effectsVolume * .65f, .75f, 0);
+            enemiesHitThisSkill.add(enemy);
+        }
+        if (fallenGod != null && fallenGod.isAlive() && !bossHitThisSkill && bounds.overlaps(fallenGod.getBounds())) {
+            int before = fallenGod.getHealth(); fallenGod.takeDamage(player.getSkillDamage());
+            Rectangle body = fallenGod.getBounds();
+            feedback.hit(body.x + body.width / 2, body.y + 65, before - fallenGod.getHealth(), false, true,
+                    Math.min(200, body.y + body.height + 14));
+            if (feedback.allowImpactSound()) combatHitSound.play(effectsVolume * .65f, .75f, 0);
+            bossHitThisSkill = true;
+        }
+    }
 
     private void drawGame() {
 
@@ -1854,7 +1855,9 @@ public class Main extends ApplicationAdapter {
 
 
 
+        if (currentStage == STAGE_THREE) spriteBatch.atmosphere();
         drawBackground();
+        spriteBatch.normal();
 
         drawGroundTiles();
 
@@ -1863,9 +1866,12 @@ public class Main extends ApplicationAdapter {
 
 
         drawMerchant();
+        if (currentStage != STAGE_GODDESS_CHURCH)
+            journeyView.exit(spriteBatch, uiFont, getCurrentWorldWidth() - 100, GROUND_Y);
 
 
 
+        if (currentStage == STAGE_THREE) spriteBatch.silhouette(false);
         for (Enemy enemy : enemies) {
 
             enemy.draw(spriteBatch);
@@ -1882,16 +1888,11 @@ public class Main extends ApplicationAdapter {
 
 
 
+        if (currentStage == STAGE_THREE) spriteBatch.silhouette(true);
         player.draw(spriteBatch);
-        drawFloatingTexts();
-        if (potionEffectTimer > 0f) {
-            uiFont.setColor(0.75f, 1f, 0.65f, potionEffectTimer);
-            uiFont.draw(spriteBatch, "POTION", player.getCenterX() - 22f,
-                    player.getY() + 105f);
-            uiFont.setColor(1f, 1f, 1f, 1f);
-        }
+        spriteBatch.normal();
 
-        drawStageOneTutorialHints();
+
 
 
 
@@ -1909,40 +1910,38 @@ public class Main extends ApplicationAdapter {
 
         drawEnemyHealthBars();
 
-        drawBossHealthBar();
-
-        drawAttackBounds();
-
-        drawPlayerHealthBar();
 
 
+        if (DEBUG_ATTACK_BOUNDS) drawAttackBounds();
 
+        feedback.drawSparks(shapeRenderer);
         shapeRenderer.end();
+        shockSlashView.draw(shapeRenderer, player);
 
 
 
-        if (shopOpen) drawShopShapes();
 
-        if (inventoryOpen) drawInventoryShapes();
+
 
 
 
         spriteBatch.begin();
 
-        if (!shopOpen) drawHud();
+        feedback.drawText(spriteBatch, uiFont, uiTheme);
+        if (!shopOpen && !inventoryOpen && !rewardOpen && !stageTransition.active()) drawHud();
 
         if (shopOpen) drawShop();
 
         if (inventoryOpen) drawInventory();
-        if (bannerTimer > 0f) {
-            uiFont.setColor(1f, 0.87f, 0.62f, Math.min(1f, bannerTimer));
-            menuTextLayout.setText(uiFont, bannerText);
-            uiFont.draw(spriteBatch, bannerText,
-                    screenLeft() + (VIEW_WIDTH - menuTextLayout.width) / 2f, 298f);
-            uiFont.setColor(1f, 1f, 1f, 1f);
-        }
+        if (rewardOpen) drawReward();
+        stageTransition.draw(spriteBatch, uiFont, screenLeft());
 
         spriteBatch.end();
+        if (showScreenControls && gameMode == GameMode.PLAYING && !shopOpen && !inventoryOpen && !rewardOpen && !stageTransition.active()) {
+            gameControls.draw(player, spriteBatch, shapeRenderer, uiFont);
+            spriteBatch.setProjectionMatrix(camera.combined);
+            shapeRenderer.setProjectionMatrix(camera.combined);
+        }
 
     }
 
@@ -2192,37 +2191,7 @@ public class Main extends ApplicationAdapter {
 
 
 
-    private void drawBossHealthBar() {
 
-
-
-        if (fallenGod == null) {
-
-            return;
-
-        }
-
-
-
-        float screenTop =
-
-                camera.position.y
-
-                        + VIEW_HEIGHT / 2f;
-
-
-
-        fallenGod.drawHealthBar(
-
-                shapeRenderer,
-
-                camera.position.x,
-
-                screenTop
-
-        );
-
-    }
 
 
 
@@ -2314,98 +2283,6 @@ public class Main extends ApplicationAdapter {
 
 
 
-    private void drawPlayerHealthBar() {
-
-
-
-        float screenLeft =
-
-                camera.position.x
-
-                        - VIEW_WIDTH / 2f;
-
-
-
-        float screenTop =
-
-                camera.position.y
-
-                        + VIEW_HEIGHT / 2f;
-
-
-
-        float barX = screenLeft + 20f;
-
-        float barY = screenTop - 35f;
-
-
-
-        float barWidth = 200f;
-
-        float barHeight = 18f;
-
-
-
-        shapeRenderer.setColor(
-
-                0.15f,
-
-                0.15f,
-
-                0.15f,
-
-                1f
-
-        );
-
-
-
-        shapeRenderer.rect(
-
-                barX,
-
-                barY,
-
-                barWidth,
-
-                barHeight
-
-        );
-
-
-
-        shapeRenderer.setColor(
-
-                0.1f,
-
-                0.8f,
-
-                0.2f,
-
-                1f
-
-        );
-
-
-
-        shapeRenderer.rect(
-
-                barX,
-
-                barY,
-
-                barWidth
-
-                        * player.getHealthRatio(),
-
-                barHeight
-
-        );
-
-    }
-
-
-
     private float screenLeft() {
 
         return camera.position.x - VIEW_WIDTH / 2f;
@@ -2416,7 +2293,7 @@ public class Main extends ApplicationAdapter {
 
     private float merchantX() {
 
-        return getCurrentWorldWidth() - 165f;
+        return getCurrentWorldWidth() - 250f;
 
     }
 
@@ -2490,40 +2367,11 @@ public class Main extends ApplicationAdapter {
 
 
 
-    private void drawStageOneTutorialHints() {
-
-        if (currentStage != STAGE_ONE || shopOpen || inventoryOpen) {
-            return;
-        }
-
-        float floatingY = MathUtils.sin(tutorialFloatTime * 2.4f) * 3f;
-
-        if (!attackTutorialDone) {
-            drawTutorialHint("[J] ATTACK", 150f, 205f + floatingY);
-        }
-
-        if (!dashTutorialDone) {
-            drawTutorialHint("[SHIFT] DASH", 325f, 205f + floatingY);
-        }
-
-        if (!inventoryTutorialDone) {
-            drawTutorialHint("[I] INVENTORY", 520f, 292f + floatingY);
-        }
-    }
 
 
 
-    private void drawTutorialHint(String text, float x, float y) {
 
-        // 그림자를 먼저 그려 밝은 스테이지 1 배경에서도 잘 보이게 한다.
-        uiFont.setColor(0f, 0f, 0f, 0.9f);
-        uiFont.draw(spriteBatch, text, x + 1.5f, y - 1.5f);
 
-        uiFont.setColor(1f, 0.92f, 0.72f, 1f);
-        uiFont.draw(spriteBatch, text, x, y);
-
-        uiFont.setColor(1f, 1f, 1f, 1f);
-    }
 
 
 
@@ -2539,7 +2387,7 @@ public class Main extends ApplicationAdapter {
 
     private Rectangle closeBounds() {
 
-        return new Rectangle(screenLeft() + 531f, 283f, 35f, 35f);
+        return ShopView.closeBounds(screenLeft());
 
     }
 
@@ -2547,7 +2395,7 @@ public class Main extends ApplicationAdapter {
 
     private Rectangle buyBounds(int row) {
 
-        return new Rectangle(screenLeft() + 459f, 220f - row * 48f, 68f, 30f);
+        return ShopView.buyBounds(screenLeft(), row);
 
     }
 
@@ -2560,6 +2408,7 @@ public class Main extends ApplicationAdapter {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
 
             shopOpen = false;
+            player.clearActionInput();
 
             return;
 
@@ -2570,6 +2419,7 @@ public class Main extends ApplicationAdapter {
         if (isMouseInside(closeBounds())) {
 
             shopOpen = false;
+            player.clearActionInput();
 
             return;
 
@@ -2611,7 +2461,9 @@ public class Main extends ApplicationAdapter {
 
         if (gold < price) {
 
-            showShopMessage("Not enough gold!");
+            shopMessageSuccess = false;
+            shopLastPurchase = -1;
+            showShopMessage("Need " + (price - gold) + " more gold.");
 
             return;
 
@@ -2653,389 +2505,224 @@ public class Main extends ApplicationAdapter {
 
         }
 
-        showShopMessage("Purchase complete!");
-        playSound(buySound);
+        shopMessageSuccess = true;
+        shopLastPurchase = row;
+        showShopMessage(new String[]{"Attack upgraded.", "Max health upgraded.",
+                "Heal potion added to inventory.", "Power potion added to inventory."}[row]);
 
     }
 
 
 
     private void useHealPotion() {
-
-        if (healPotions > 0 && player.heal(30)) {
-            healPotions--;
-            potionEffectTimer = 0.85f;
-            playSound(potionSound);
+        if (healPotions <= 0) {
+            showInventoryMessage("No heal potions. Buy one from the merchant.", false);
+            return;
         }
+        int before = player.getHealth();
+        if (player.heal(GameBalance.healing(player.getMaxHealth()))) {
+            healPotions--;
+            runStats.potion();
+            showInventoryMessage("Recovered " + (player.getHealth() - before) + " HP.", true);
+        } else showInventoryMessage("HP is already full. Potion kept.", false);
+    }
 
+    private void showInventoryMessage(String message, boolean success) {
+        inventoryMessage = message;
+        inventoryMessageSuccess = success;
+        inventoryMessageTimer = 3f;
     }
 
 
 
     private void useAttackPotion() {
-
-        if (attackPotions > 0 && player.isAlive()) {
-
+        if (attackPotions <= 0) {
+            showInventoryMessage("No power potions. Buy one from the merchant.", false);
+        } else if (player.isAlive()) {
             attackPotions--;
-
+            runStats.potion();
             player.drinkAttackPotion();
-            potionEffectTimer = 0.85f;
-            playSound(potionSound);
-
+            showInventoryMessage("Power active: +" + GameBalance.POWER_BONUS + " damage for "
+                    + (int)GameBalance.POWER_DURATION + " seconds.", true);
         }
-
     }
 
 
 
     private Rectangle inventoryUseBounds(int row) {
-
-        return new Rectangle(screenLeft() + 388f, 176f - row * 55f, 56f, 30f);
-
+        return InventoryView.useBounds(screenLeft(), row);
     }
 
 
 
     private void updateInventoryInput() {
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.I) ||
-
-                Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-
+        if (Gdx.input.isKeyJustPressed(Input.Keys.I) || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             inventoryOpen = false;
-
+            player.clearActionInput();
             return;
-
         }
-
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) useHealPotion();
-
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) useAttackPotion();
-
-        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
-
-            if (isMouseInside(inventoryUseBounds(0))) useHealPotion();
-
-            else if (isMouseInside(inventoryUseBounds(1))) useAttackPotion();
-
-        }
-
+        if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) return;
+        if (isMouseInside(InventoryView.closeBounds(screenLeft()))) {
+            inventoryOpen = false;
+            player.clearActionInput();
+        } else if (isMouseInside(inventoryUseBounds(0))) useHealPotion();
+        else if (isMouseInside(inventoryUseBounds(1))) useAttackPotion();
     }
 
 
 
-    private void drawInventoryShapes() {
 
-        float x = screenLeft();
-
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        shapeRenderer.setColor(0.03f, 0.03f, 0.04f, 1f);
-
-        shapeRenderer.rect(x + 155f, 81f, 330f, 215f);
-
-        shapeRenderer.setColor(0.32f, 0.25f, 0.17f, 1f);
-
-        shapeRenderer.rect(inventoryUseBounds(0).x, inventoryUseBounds(0).y, 56f, 30f);
-
-        shapeRenderer.rect(inventoryUseBounds(1).x, inventoryUseBounds(1).y, 56f, 30f);
-
-        shapeRenderer.end();
-
-    }
 
 
 
     private void drawInventory() {
-
-        float x = screenLeft();
-
-        uiFont.draw(spriteBatch, "INVENTORY [I to close]", x + 174f, 269f);
-
-        if (healPotionIcon != null) spriteBatch.draw(healPotionIcon, x + 176f, 174f, 38f, 38f);
-
-        uiFont.draw(spriteBatch, "Heal potion x" + healPotions, x + 225f, 193f);
-
-        uiFont.draw(spriteBatch, "USE", x + 402f, 197f);
-
-        if (attackPotionIcon != null) spriteBatch.draw(attackPotionIcon, x + 176f, 119f, 38f, 38f);
-
-        uiFont.draw(spriteBatch, "Power potion x" + attackPotions, x + 225f, 138f);
-
-        uiFont.draw(spriteBatch, "USE", x + 402f, 142f);
-
+        int hovered = -1;
+        for (int row = 0; row < 2; row++) if (isMouseInside(inventoryUseBounds(row))) hovered = row;
+        inventoryView.draw(spriteBatch, uiFont, screenLeft(), player, healPotions, attackPotions,
+                healPotionIcon, attackPotionIcon, hovered, Gdx.input.isButtonPressed(Input.Buttons.LEFT),
+                isMouseInside(InventoryView.closeBounds(screenLeft())),
+                inventoryMessageTimer > 0 ? inventoryMessage : "", inventoryMessageSuccess);
     }
 
 
 
     private void drawHud() {
-
-        float x = screenLeft();
-
-        if (goldIcon != null) spriteBatch.draw(goldIcon, x + 508f, 325f, 20f, 20f);
-
-        uiFont.draw(spriteBatch, "GOLD " + gold, x + 531f, 341f);
-
-        if (healPotionIcon != null) spriteBatch.draw(healPotionIcon, x + 22f, 274f, 24f, 24f);
-
-        uiFont.draw(spriteBatch, "1 x" + healPotions, x + 48f, 292f);
-
-        if (attackPotionIcon != null) spriteBatch.draw(attackPotionIcon, x + 100f, 274f, 24f, 24f);
-
-        uiFont.draw(spriteBatch, "2 x" + attackPotions, x + 126f, 292f);
-
-        if (player.getAttackPotionTimer() > 0f) {
-
-            uiFont.draw(spriteBatch, "ATK +3: " +
-
-                    (int) Math.ceil(player.getAttackPotionTimer()) + "s", x + 185f, 292f);
-
-        }
-
+        feedback.drawScreenPulse(spriteBatch, uiTheme, screenLeft());
+        gameHud.draw(spriteBatch, uiFont, screenLeft(), player, feedback.trailRatio(),
+                healPotions, attackPotions, gold, healPotionIcon, attackPotionIcon, goldIcon);
+        gameHud.drawBoss(spriteBatch, uiFont, screenLeft(), fallenGod);
+        gameHud.drawActions(spriteBatch, uiFont, screenLeft(), player, showScreenControls,
+                feedback.showsSkillInterrupted());
+        int defeated = 0;
+        for (Enemy enemy : enemies) if (enemy.getHealth() <= 0) defeated++;
+        journeyView.progress(spriteBatch, uiFont, screenLeft(), currentStage, defeated, enemies.size(),
+                player.getX(), getCurrentWorldWidth(), fallenGod, runStats);
+        if (currentStage == STAGE_ONE) journeyView.tutorial(spriteBatch, uiFont, screenLeft(), tutorial,
+                isMouseInside(JourneyView.skipBounds(screenLeft())), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
     }
 
-
+    private void drawReward() {
+        int hovered = -1;
+        for (int i = 0; i < 3; i++) if (isMouseInside(RewardView.cardBounds(screenLeft(), i))) hovered = i;
+        rewardView.draw(spriteBatch, uiFont, screenLeft(), currentStage, player, gold, rewardSelection, hovered,
+                isMouseInside(RewardView.continueBounds(screenLeft())), Gdx.input.isButtonPressed(Input.Buttons.LEFT),
+                new Texture[]{healPotionIcon, goldIcon, healthUpgradeIcon});
+    }
 
     private void drawShop() {
-
-        float x = screenLeft();
-
-        uiFont.draw(spriteBatch, "MERCHANT", x + 88f, 312f);
-
-        if (goldIcon != null) spriteBatch.draw(goldIcon, x + 352f, 286f, 20f, 20f);
-
-        uiFont.draw(spriteBatch, "GOLD " + gold, x + 377f, 303f);
-
-        if (closeIcon != null) {
-
-            Rectangle b = closeBounds();
-
-            spriteBatch.draw(closeIcon, b.x, b.y, b.width, b.height);
-
-        } else {
-
-            uiFont.draw(spriteBatch, "X", x + 544f, 307f);
-
-        }
-
-        drawShopRow(0, attackUpgradeIcon, "Attack upgrade", "Damage +1 (this run)", ATTACK_PRICE);
-
-        drawShopRow(1, healthUpgradeIcon, "Health upgrade", "Max HP +10 (this run)", HEALTH_PRICE);
-
-        drawShopRow(2, healPotionIcon, "Heal potion", "Inventory: restore 30 HP [1]", HEAL_POTION_PRICE);
-
-        drawShopRow(3, attackPotionIcon, "Power potion", "Inventory: ATK +3 for 10s [2]", ATTACK_POTION_PRICE);
-
-        if (shopMessageTimer > 0f) {
-
-            uiFont.draw(spriteBatch, shopMessage, x + 213f, 56f);
-
-        }
-
-    }
-
-
-
-    private void drawShopShapes() {
-
-        float x = screenLeft();
-
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        shapeRenderer.setColor(0.02f, 0.02f, 0.03f, 0.75f);
-
-        shapeRenderer.rect(x, 0f, VIEW_WIDTH, VIEW_HEIGHT);
-
-        if (shopPanelTexture == null) {
-
-            shapeRenderer.setColor(0.12f, 0.09f, 0.08f, 1f);
-
-            shapeRenderer.rect(x + 60f, 20f, 520f, 320f);
-
-        }
-
-        shapeRenderer.end();
-
-        if (shopPanelTexture != null) {
-
-            spriteBatch.begin();
-
-            spriteBatch.draw(shopPanelTexture, x + 60f, 20f, 520f, 320f);
-
-            spriteBatch.end();
-
-        }
-
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
+        int hovered = -1;
         for (int row = 0; row < 4; row++) {
-
-            boolean hovered = isMouseInside(buyBounds(row));
-            shapeRenderer.setColor(hovered ? 0.29f : 0.18f,
-                    hovered ? 0.21f : 0.14f, 0.12f, 0.92f);
-
-            shapeRenderer.rect(x + 78f, 214f - row * 48f, 460f, 45f);
-
-            Rectangle b = buyBounds(row);
-
-            shapeRenderer.setColor(gold >= new int[]{ATTACK_PRICE, HEALTH_PRICE,
-
-                    HEAL_POTION_PRICE, ATTACK_POTION_PRICE}[row]
-
-                    ? (hovered ? 0.56f : 0.36f) : 0.19f, 0.25f, 0.12f, 1f);
-
-            shapeRenderer.rect(b.x, b.y, b.width, b.height);
-
+            if (isMouseInside(buyBounds(row))) hovered = row;
         }
-
-        shapeRenderer.end();
-
+        shopView.draw(spriteBatch, uiFont, screenLeft(), shopPanelTexture, goldIcon,
+                new Texture[]{attackUpgradeIcon, healthUpgradeIcon, healPotionIcon, attackPotionIcon},
+                gold, new int[]{ATTACK_PRICE, HEALTH_PRICE, HEAL_POTION_PRICE, ATTACK_POTION_PRICE},
+                new int[]{attackLevels, healthLevels, healPotions, attackPotions}, hovered,
+                Gdx.input.isButtonPressed(Input.Buttons.LEFT), isMouseInside(closeBounds()),
+                shopMessage, shopMessageSuccess, shopLastPurchase, shopMessageTimer,
+                player.getAttackDamage(), player.getMaxHealth(), player.getHealth(), player.getAttackPotionTimer() > 0 ? 1 : 0);
     }
-
-
-
-    private void drawShopRow(int row, Texture icon, String name, String info, int price) {
-
-        float x = screenLeft();
-
-        float top = 258f - row * 48f;
-
-        if (icon != null) spriteBatch.draw(icon, x + 88f, top - 37f, 32f, 32f);
-
-        uiFont.draw(spriteBatch, name, x + 127f, top - 11f);
-
-        uiFont.draw(spriteBatch, info, x + 127f, top - 28f);
-
-        uiFont.draw(spriteBatch, price + "G", x + 410f, top - 17f);
-
-        uiFont.draw(spriteBatch, "BUY", x + 476f, top - 17f);
-
-    }
-
-
 
     private void updateMenuInput() {
-
-        if (gameMode != GameMode.MENU) {
-
-            updateResultScreenInput();
-
-            return;
-
-        }
-
+        if (gameMode != GameMode.MENU) { updateResultScreenInput(); return; }
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-
-            if (menuPage == MenuPage.SETTINGS && settingsFromPause) {
-                gameMode = GameMode.PAUSED;
-                settingsFromPause = false;
-            } else if (menuPage != MenuPage.MAIN) {
-                menuPage = MenuPage.MAIN;
-            }
-
-            return;
-
-        }
-
-        if (menuPage == MenuPage.MAIN &&
-                Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-
-            restartGame();
-
-            return;
-
-        }
-
-        if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+            menuPage = MenuPage.MAIN;
             return;
         }
-
+        if (menuPage == MenuPage.MAIN && Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+            restartGame(); return;
+        }
+        if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) return;
         if (menuPage == MenuPage.MAIN) {
-
-            if (isMouseInside(mainMenuButtonBounds(0))) {
-                restartGame();
-            } else if (isMouseInside(mainMenuButtonBounds(1))) {
-                menuPage = MenuPage.STAGE_SELECT;
-            } else if (isMouseInside(mainMenuButtonBounds(2))) {
-                settingsFromPause = false;
-                menuPage = MenuPage.SETTINGS;
-            } else if (isMouseInside(mainMenuButtonBounds(3))) {
-                Gdx.app.exit();
-            }
-
+            if (isMouseInside(mainMenuButtonBounds(0))) restartGame();
+            else if (isMouseInside(mainMenuButtonBounds(1))) menuPage = MenuPage.STAGE_SELECT;
+            else if (isMouseInside(mainMenuButtonBounds(2))) menuPage = MenuPage.SETTINGS;
+            else if (isMouseInside(mainMenuButtonBounds(3))) Gdx.app.exit();
         } else if (menuPage == MenuPage.STAGE_SELECT) {
-
             for (int row = 0; row < 4; row++) {
-                if (row + 1 <= highestUnlockedStage &&
-                        isMouseInside(subMenuButtonBounds(row))) {
-                    startStage(row + 1);
-                    return;
+                if (isMouseInside(subMenuButtonBounds(row))) { startStage(row + 1); return; }
+            }
+            if (isMouseInside(subMenuButtonBounds(4))) menuPage = MenuPage.MAIN;
+        } else {
+            for (int row = 0; row < 2; row++) {
+                for (int direction : new int[]{-1, 1}) {
+                    if (isMouseInside(settingsVolumeBounds(row, direction))) {
+                        changeVolume(row, direction); return;
+                    }
                 }
             }
-
-            if (isMouseInside(subMenuButtonBounds(4))) {
-                menuPage = MenuPage.MAIN;
-            }
-
-        } else {
-            updateSettingsClick();
+            if (isMouseInside(settingsButtonBounds(2))) {
+                showScreenControls = !showScreenControls; saveSettings();
+            } else if (isMouseInside(settingsButtonBounds(3))) {
+                if (Gdx.graphics.isFullscreen()) Gdx.graphics.setWindowedMode(1280, 720);
+                else Gdx.graphics.setFullscreenMode(Gdx.graphics.getDisplayMode());
+            } else if (isMouseInside(settingsButtonBounds(4))) menuPage = MenuPage.MAIN;
         }
+    }
 
+    private Rectangle settingsVolumeBounds(int row, int direction) {
+        Rectangle r = settingsButtonBounds(row);
+        return new Rectangle(r.x + (direction < 0 ? 0 : r.width - 32), r.y, 32, r.height);
+    }
+
+    private void changeVolume(int row, int direction) {
+        if (row == 0) {
+            musicVolume = MathUtils.clamp((musicMuted ? 0 : musicVolume) + direction * .25f, 0, 1);
+            musicMuted = musicVolume == 0;
+            applyMusicVolume();
+        } else effectsVolume = MathUtils.clamp(effectsVolume + direction * .25f, 0, 1);
+        saveSettings();
     }
 
 
 
     private void updateResultScreenInput() {
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) ||
-                Gdx.input.isKeyJustPressed(Input.Keys.R)) {
-
-            if (gameMode == GameMode.CLEARED) returnToMainMenu();
-            else restartGame();
-
-            return;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.TAB) || Gdx.input.isKeyJustPressed(Input.Keys.LEFT)
+                || Gdx.input.isKeyJustPressed(Input.Keys.RIGHT)) { resultPage = 1 - resultPage; return; }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) { applyResultAction(0); return; }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) { restartGame(); return; }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) { returnToMainMenu(); return; }
+        if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) return;
+        for (int page = 0; page < 2; page++) if (isMouseInside(ResultView.tabBounds(screenLeft(), page))) { resultPage = page; return; }
+        for (int row = 0; row < 3; row++) {
+            if (isMouseInside(resultButtonBounds(row))) { applyResultAction(row); return; }
         }
+    }
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            returnToMainMenu();
-            return;
-        }
-
-        if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
-            return;
-        }
-
-        if (isMouseInside(resultButtonBounds(0))) {
-            if (gameMode == GameMode.CLEARED) returnToMainMenu();
-            else restartGame();
-        } else if (gameMode == GameMode.GAME_OVER &&
-                isMouseInside(resultButtonBounds(1))) {
-            returnToMainMenu();
-        }
+    private void applyResultAction(int row) {
+        if (row == 0) {
+            if (lastResult != null && !lastResult.cleared()) retryStage(); else restartGame();
+        } else if (row == 1) {
+            if (lastResult != null && lastResult.cleared()) {
+                returnToMainMenu(); menuPage = MenuPage.STAGE_SELECT;
+            } else restartGame();
+        } else returnToMainMenu();
     }
 
 
 
     private Rectangle mainMenuButtonBounds(int row) {
-        return new Rectangle(screenLeft() + 42f, 180f - row * 57f, 240f, 56f);
+        return new Rectangle(screenLeft() + 42f, 186f - row * 57f, 240f, 44f);
     }
 
 
 
     private Rectangle subMenuButtonBounds(int row) {
-        return new Rectangle(screenLeft() + 55f, 220f - row * 48f, 210f, 44f);
+        return new Rectangle(screenLeft() + 55f, 222f - row * 48f, 210f, 40f);
     }
 
 
 
     private Rectangle settingsButtonBounds(int row) {
-        return new Rectangle(screenLeft() + 55f, 215f - row * 45f, 240f, 42f);
+        return new Rectangle(screenLeft() + 55f, 248f - row * 48f, 260f, 42f);
     }
 
 
 
     private Rectangle resultButtonBounds(int row) {
-        return new Rectangle(screenLeft() + 200f, 135f - row * 66f, 240f, 56f);
+        return ResultView.buttonBounds(screenLeft(), row);
     }
 
 
@@ -3094,196 +2781,98 @@ public class Main extends ApplicationAdapter {
         drawMenuButton(mainMenuButtonBounds(1), "STAGE SELECT");
         drawMenuButton(mainMenuButtonBounds(2), "SETTINGS");
         drawMenuButton(mainMenuButtonBounds(3), "EXIT");
+        journeyView.records(spriteBatch, uiFont, screenLeft(), clearRecords.read(1));
     }
 
 
 
     private void drawStageSelectMenu() {
-
-        float x = screenLeft();
-
-        uiFont.setColor(1f, 0.92f, 0.72f, 1f);
-        uiFont.draw(spriteBatch, "STAGE SELECT", x + 102f, 306f);
-        uiFont.setColor(1f, 1f, 1f, 1f);
-
-        for (int stage = 1; stage <= 4; stage++) {
-            drawMenuButton(subMenuButtonBounds(stage - 1),
-                    stage <= highestUnlockedStage ? stageName(stage) : "LOCKED");
+        float left = screenLeft();
+        uiTheme.rect(spriteBatch, left, 0, 640, 360, com.badlogic.gdx.graphics.Color.BLACK, .42f);
+        uiTheme.text(spriteBatch, uiFont, "STAGE SELECT", left + 55, 326, 1.15f, UiTheme.TEXT, 260);
+        uiTheme.text(spriteBatch, uiFont, "Choose a region to practice.", left + 55, 305, .65f, UiTheme.MUTED, 260);
+        String[] names = {"VERDANT RUINS", "CASTLE RAMPARTS", "ASHEN BATTLEFIELD", "GODDESS CHURCH"};
+        for (int row = 0; row < 4; row++) {
+            if (isMouseInside(subMenuButtonBounds(row))) previewStage = row + 1;
+            drawMenuButton(subMenuButtonBounds(row), "0" + (row + 1) + "  " + names[row]);
         }
         drawMenuButton(subMenuButtonBounds(4), "BACK");
+        int index = previewStage - 1;
+        uiTheme.panel(spriteBatch, left + 300, 50, 310, 238);
+        uiTheme.text(spriteBatch, uiFont, "REGION 0" + previewStage, left + 314, 273, .6f, UiTheme.GOLD, 280);
+        String[] difficulty = {"INTRO", "NORMAL", "HARD", "BOSS"};
+        uiTheme.text(spriteBatch, uiFont, "DIFFICULTY: " + difficulty[index], left + 450, 273, .6f, UiTheme.MUTED, 146);
+        Texture[] previews = {stage1BackgroundTexture, stage2BackgroundTexture, stage3BackgroundTexture,
+                goddessChurchBackgroundTexture};
+        float packed = spriteBatch.getPackedColor();
+        spriteBatch.setColor(com.badlogic.gdx.graphics.Color.WHITE);
+        spriteBatch.draw(previews[index], left + 314, 130, 282, 126);
+        spriteBatch.setPackedColor(packed);
+        uiTheme.text(spriteBatch, uiFont, names[index], left + 314, 116, 1f, UiTheme.TEXT, 282);
+        String[] focus = {"Slimes / Learn the basics", "Knights / Close combat",
+                "Dark slimes / Timing & spacing", "Boss / Watch attack height"};
+        uiTheme.text(spriteBatch, uiFont, focus[index], left + 314, 95, .65f, UiTheme.MUTED, 282);
+        uiTheme.text(spriteBatch, uiFont, "FRESH RUN / Starts with base stats", left + 314, 70, .6f, UiTheme.GOLD, 282);
+        ClearRecords.Summary record = clearRecords.read(previewStage);
+        uiTheme.text(spriteBatch, uiFont, record.exists() ? "BEST " + JourneyView.time(record.bestSeconds())
+                + " / CLEARS " + record.clears() : "No clear record for this starting region.",
+                left + 314, 57, .52f, UiTheme.MUTED, 282);
     }
 
 
 
     private void drawSettingsMenu() {
-
-        float x = screenLeft();
-
-        uiFont.setColor(1f, 0.92f, 0.72f, 1f);
-        uiFont.draw(spriteBatch, "SETTINGS", x + 112f, 278f);
-        uiFont.setColor(1f, 1f, 1f, 1f);
-
-        drawMenuButton(settingsButtonBounds(0),
-                "MUSIC " + (musicMuted ? "OFF" : (int)(musicVolume * 400f) + "%"));
-        drawMenuButton(settingsButtonBounds(1), "SFX " + (int)(effectsVolume * 100f) + "%");
-        drawMenuButton(settingsButtonBounds(2),
-                Gdx.graphics.isFullscreen() ? "FULLSCREEN" : "WINDOWED");
-        drawMenuButton(settingsButtonBounds(3),
-                screenShakeEnabled ? "SHAKE ON" : "SHAKE OFF");
+        float left = screenLeft();
+        uiTheme.rect(spriteBatch, left, 0, 640, 360, com.badlogic.gdx.graphics.Color.BLACK, .35f);
+        uiTheme.text(spriteBatch, uiFont, "SETTINGS", left + 55, 326, 1.15f, UiTheme.TEXT, 260);
+        uiTheme.text(spriteBatch, uiFont, "Volume: use - / + in 25% steps.", left + 55, 305, .65f, UiTheme.MUTED, 260);
+        for (int row = 0; row < 2; row++) {
+            Rectangle area = settingsButtonBounds(row);
+            float volume = row == 0 ? (musicMuted ? 0 : musicVolume) : effectsVolume;
+            uiTheme.panel(spriteBatch, area.x, area.y, area.width, area.height);
+            uiTheme.centered(spriteBatch, uiFont, (row == 0 ? "MUSIC " : "EFFECTS ")
+                    + Math.round(volume * 100) + "%", new Rectangle(area.x + 36, area.y + 12, area.width - 72, 26), .8f, UiTheme.TEXT);
+            uiTheme.rect(spriteBatch, area.x + 48, area.y + 8, area.width - 96, 3, UiTheme.BORDER, 1);
+            uiTheme.rect(spriteBatch, area.x + 48, area.y + 8, (area.width - 96) * volume, 3, UiTheme.GOLD, 1);
+            for (int direction : new int[]{-1, 1}) {
+                Rectangle button = settingsVolumeBounds(row, direction);
+                uiTheme.button(spriteBatch, uiFont, button, direction < 0 ? "-" : "+",
+                        direction < 0 ? volume > 0 : volume < 1, isMouseInside(button),
+                        Gdx.input.isButtonPressed(Input.Buttons.LEFT), 1.1f);
+            }
+        }
+        drawMenuButton(settingsButtonBounds(2), "SCREEN BUTTONS " + (showScreenControls ? "ON" : "OFF"));
+        drawMenuButton(settingsButtonBounds(3), Gdx.graphics.isFullscreen() ? "FULLSCREEN" : "WINDOWED");
         drawMenuButton(settingsButtonBounds(4), "BACK");
+        uiTheme.text(spriteBatch, uiFont, "Audio & button preferences save automatically.", left + 55, 32, .58f, UiTheme.MUTED, 300);
     }
 
+    private void applyMusicVolume() {
+        if (backgroundMusic != null) backgroundMusic.setVolume(musicMuted ? 0 : musicVolume);
+    }
 
+    private void saveSettings() {
+        preferences.putFloat("musicVolume", musicVolume).putFloat("effectsVolume", effectsVolume)
+                .putBoolean("musicMuted", musicMuted).putBoolean("showScreenControls", showScreenControls).flush();
+    }
+
+    @Override public void pause() {
+        if (gameMode == GameMode.PLAYING) pauseGame();
+    }
 
     private void drawResultMenu() {
-
-        float x = screenLeft();
-        String title = gameMode == GameMode.GAME_OVER ? "GAME OVER" : "BOSS CLEARED";
-
-        drawCenteredMenuText(title, new Rectangle(x + 150f, 225f, 340f, 70f));
-
-        drawMenuButton(resultButtonBounds(0),
-                gameMode == GameMode.GAME_OVER ? "RETRY" : "MAIN MENU");
-
-        if (gameMode == GameMode.GAME_OVER) {
-            drawMenuButton(resultButtonBounds(1), "MAIN MENU");
+        int hovered = -1;
+        for (int row = 0; row < 3; row++) {
+            if (isMouseInside(resultButtonBounds(row))) hovered = row;
         }
+        resultView.draw(spriteBatch, uiFont, screenLeft(), lastResult, hovered,
+                Gdx.input.isButtonPressed(Input.Buttons.LEFT), resultPage);
     }
-
-
 
     private void drawMenuButton(Rectangle bounds, String label) {
-
         boolean hovered = isMouseInside(bounds);
-        boolean pressed = hovered && Gdx.input.isButtonPressed(Input.Buttons.LEFT);
-
-        Texture buttonTexture = menuButtonNormalTexture;
-
-        if (pressed && menuButtonPressedTexture != null) {
-            buttonTexture = menuButtonPressedTexture;
-        } else if (hovered && menuButtonHoverTexture != null) {
-            buttonTexture = menuButtonHoverTexture;
-        }
-
-        if (buttonTexture != null) {
-            spriteBatch.draw(buttonTexture, bounds.x, bounds.y,
-                    bounds.width, bounds.height);
-        }
-
-        drawCenteredMenuText(label, bounds);
-    }
-
-    private void updatePausedInput() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            confirmExit = false;
-            gameMode = GameMode.PLAYING;
-            return;
-        }
-        if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) return;
-        if (confirmExit) {
-            if (isMouseInside(pauseButtonBounds(1))) {
-                confirmExit = false;
-                returnToMainMenu();
-            } else if (isMouseInside(pauseButtonBounds(0))) confirmExit = false;
-            return;
-        }
-        if (isMouseInside(pauseButtonBounds(0))) gameMode = GameMode.PLAYING;
-        else if (isMouseInside(pauseButtonBounds(1))) restartGame();
-        else if (isMouseInside(pauseButtonBounds(2))) {
-            settingsFromPause = true;
-            menuPage = MenuPage.SETTINGS;
-            gameMode = GameMode.MENU;
-        } else if (isMouseInside(pauseButtonBounds(3))) confirmExit = true;
-    }
-
-    private Rectangle pauseButtonBounds(int row) {
-        return new Rectangle(screenLeft() + 200f, 205f - row * 45f, 240f, 42f);
-    }
-
-    private void drawPauseOverlay() {
-        shapeRenderer.setProjectionMatrix(camera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(0f, 0f, 0f, 0.72f);
-        shapeRenderer.rect(screenLeft(), 0f, VIEW_WIDTH, VIEW_HEIGHT);
-        shapeRenderer.end();
-        spriteBatch.setProjectionMatrix(camera.combined);
-        spriteBatch.begin();
-        drawCenteredMenuText(confirmExit ? "RETURN TO MENU?" : "PAUSED",
-                new Rectangle(screenLeft() + 160f, 265f, 320f, 55f));
-        if (confirmExit) {
-            drawMenuButton(pauseButtonBounds(0), "CANCEL");
-            drawMenuButton(pauseButtonBounds(1), "CONFIRM");
-        } else {
-            drawMenuButton(pauseButtonBounds(0), "CONTINUE");
-            drawMenuButton(pauseButtonBounds(1), "RESTART");
-            drawMenuButton(pauseButtonBounds(2), "SETTINGS");
-            drawMenuButton(pauseButtonBounds(3), "MAIN MENU");
-        }
-        spriteBatch.end();
-    }
-
-    private void updateSettingsClick() {
-        if (isMouseInside(settingsButtonBounds(0))) {
-            musicVolume = musicVolume >= 0.5f ? 0f : musicVolume + 0.125f;
-            musicMuted = musicVolume == 0f;
-            backgroundMusic.setVolume(musicVolume);
-        } else if (isMouseInside(settingsButtonBounds(1))) {
-            effectsVolume = effectsVolume >= 1f ? 0f : Math.min(1f, effectsVolume + 0.25f);
-        } else if (isMouseInside(settingsButtonBounds(2))) {
-            if (Gdx.graphics.isFullscreen()) {
-                Gdx.graphics.setWindowedMode(windowWidth, windowHeight);
-            } else {
-                windowWidth = Gdx.graphics.getWidth();
-                windowHeight = Gdx.graphics.getHeight();
-                Gdx.graphics.setFullscreenMode(Gdx.graphics.getDisplayMode());
-            }
-        } else if (isMouseInside(settingsButtonBounds(3))) {
-            screenShakeEnabled = !screenShakeEnabled;
-        } else if (isMouseInside(settingsButtonBounds(4))) {
-            menuPage = MenuPage.MAIN;
-            if (settingsFromPause) {
-                settingsFromPause = false;
-                gameMode = GameMode.PAUSED;
-            }
-        }
-    }
-
-    private Sound optionalSound(String file) {
-        return Gdx.files.internal(file).exists()
-                ? Gdx.audio.newSound(Gdx.files.internal(file)) : null;
-    }
-
-    private void playSound(Sound sound) {
-        if (sound != null && effectsVolume > 0f) sound.play(effectsVolume);
-    }
-
-    private void shake(float strength) {
-        if (screenShakeEnabled) {
-            shakeTimer = 0.15f;
-            shakeStrength = strength;
-        }
-    }
-
-    private void addFloating(String label, float x, float y) {
-        floatingTexts.add(new FloatingText(label, x, y));
-    }
-
-    private void drawFloatingTexts() {
-        for (FloatingText item : floatingTexts) {
-            uiFont.setColor(1f, 0.88f, 0.52f, Math.min(1f, item.life * 2f));
-            uiFont.draw(spriteBatch, item.label, item.x, item.y);
-        }
-        uiFont.setColor(1f, 1f, 1f, 1f);
-    }
-
-    private void showBanner(String label) {
-        bannerText = label;
-        bannerTimer = 1.8f;
-    }
-
-    private String stageName(int stage) {
-        if (stage == STAGE_GODDESS_CHURCH) return "BOSS STAGE";
-        return "STAGE " + stage;
+        uiTheme.button(spriteBatch, uiFont, bounds, label, true, hovered,
+                hovered && Gdx.input.isButtonPressed(Input.Buttons.LEFT), 1f);
     }
 
 
@@ -3405,9 +2994,14 @@ public class Main extends ApplicationAdapter {
         if (menuButtonPressedTexture != null) menuButtonPressedTexture.dispose();
 
         uiFont.dispose();
-        if (hitSound != null) hitSound.dispose();
-        if (buySound != null) buySound.dispose();
-        if (potionSound != null) potionSound.dispose();
+        gameHud.dispose();
+        uiTheme.dispose();
+        shopView.dispose();
+        resultView.dispose();
+        pauseView.dispose();
+        stageTransition.dispose();
+        if (combatHitSound != null) combatHitSound.dispose();
+        if (playerHurtSound != null) playerHurtSound.dispose();
 
 
 

@@ -1,5 +1,7 @@
 package com.example.pixelgame;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.g2d.Animation;
@@ -9,11 +11,34 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 
 public class Enemy {
+    public int getHealth() { return health; }
+
 
     public enum EnemyType {
         SLIME,
         KNIGHT,
         DARK_SLIME
+    }
+
+    // Measure the body, not transparent padding or the sword's attack trail.
+    private static final float KNIGHT_BODY_HEIGHT = 105f;
+    private static final class BodyFrame extends TextureRegion {
+        final float drawScale;
+        final int footFromBottom;
+
+        BodyFrame(TextureRegion region, float targetBodyHeight, float sourceBodyHeight, Pixmap pixels) {
+            super(region);
+            drawScale = targetBodyHeight / sourceBodyHeight;
+            int bottom = getRegionHeight();
+            for (int row = getRegionHeight() - 1; row >= 0; row--) {
+                int solid = 0;
+                for (int col = 0; col < getRegionWidth(); col++) {
+                    if ((pixels.getPixel(getRegionX() + col, getRegionY() + row) & 255) > 96) solid++;
+                }
+                if (solid >= 3) { bottom = row + 1; break; }
+            }
+            footFromBottom = getRegionHeight() - bottom;
+        }
     }
 
     private final EnemyType enemyType;
@@ -89,6 +114,22 @@ public class Enemy {
     // 공격 재사용 시간
     private float attackCooldownTimer = 0;
     private float attackCooldown;
+    private float poiseTimer;
+
+    /** A brief steady stance prevents basic-attack stun loops; heavy attacks break it. */
+    public boolean isBraced() {
+        return enemyType == EnemyType.KNIGHT && alive && !dying
+                && (poiseTimer > 0 || (attacking && attackAnimationTime >= .12f && attackAnimationTime < .40f));
+    }
+
+    /** The cue uses the same locked direction and height as this attack's damage bounds. */
+    public boolean isAttackCueVisible() {
+        return alive && !dying && attacking && attackAnimationTime < attackHitTime + .09f;
+    }
+
+    public float getAttackCueProgress() {
+        return Math.max(0, Math.min(1, attackAnimationTime / attackHitTime));
+    }
 
     // 체력
     private int health;
@@ -161,7 +202,7 @@ public class Enemy {
             detectionRange = 390f;
             attackRange = 92f;
             attackCooldown = 1.4f;
-            attackHitTime = 0.24f;
+            attackHitTime = 0.30f;
 
             maxHealth = 5;
             health = maxHealth;
@@ -191,7 +232,7 @@ public class Enemy {
             detectionRange = 380f;
             attackRange = 90f;
             attackCooldown = 1.3f;
-            attackHitTime = 0.20f;
+            attackHitTime = 0.22f;
 
             maxHealth = 4;
             health = maxHealth;
@@ -221,7 +262,7 @@ public class Enemy {
             detectionRange = 350f;
             attackRange = 72f;
             attackCooldown = 1.2f;
-            attackHitTime = 0.20f;
+            attackHitTime = 0.24f;
 
             maxHealth = 3;
             health = maxHealth;
@@ -248,7 +289,7 @@ public class Enemy {
 
         } else if (enemyType == EnemyType.DARK_SLIME) {
 
-            // 이동 시트가 준비되기 전까지 대기 이미지를 공용으로 사용
+            // Idle is reused for movement; the attack has its own four-frame sheet.
             idleTexture = new Texture(
                     "enemy/dark_slime_idle.png"
             );
@@ -261,7 +302,7 @@ public class Enemy {
                     "enemy/dark_slime_attack_idle.png"
             );
 
-            deathTexture = null;
+            deathTexture = new Texture("enemy/dark_slime_death.png");
 
         } else {
 
@@ -277,9 +318,8 @@ public class Enemy {
                     "enemy/slime attack.png"
             );
 
-            deathTexture = new Texture(
-                    "enemy/slime_death.png"
-            );
+            // No green death sheet exists: reuse the green body and fade it, never another enemy's art.
+            deathTexture = null;
         }
 
         idleTexture.setFilter(
@@ -319,11 +359,6 @@ public class Enemy {
                         ? 1
                         : 6;
 
-        int attackFrameCount =
-                enemyType == EnemyType.DARK_SLIME
-                        ? 4
-                        : 6;
-
         idleAnimation = createAnimation(
                 idleTexture,
                 idleFrameCount,
@@ -340,13 +375,16 @@ public class Enemy {
 
         attackAnimation = createAnimation(
                 attackTexture,
-                attackFrameCount,
+                enemyType == EnemyType.DARK_SLIME ? 4 : actionFrameCount,
                 0.10f,
                 Animation.PlayMode.NORMAL
         );
 
-        if (deathTexture != null) {
-
+        if (enemyType == EnemyType.SLIME) {
+            TextureRegion[] idle = idleAnimation.getKeyFrames();
+            deathAnimation = new Animation<>(.16f, new TextureRegion[]{idle[0], idle[2], idle[2], idle[2]});
+            deathAnimation.setPlayMode(Animation.PlayMode.NORMAL);
+        } else if (deathTexture != null) {
             deathAnimation = createAnimation(
                     deathTexture,
                     4,
@@ -371,6 +409,20 @@ public class Enemy {
         TextureRegion[] frames =
                 new TextureRegion[frameCount];
 
+        // Native body dimensions exclude the sheet's transparent gutters and sword trails.
+        boolean knight = enemyType == EnemyType.KNIGHT;
+        boolean dark = enemyType == EnemyType.DARK_SLIME;
+        String bodyAsset = knight ? (texture == idleTexture ? "enemy/k_stand.png"
+                : texture == moveTexture ? "enemy/k_walk.png" : "enemy/k_attack.png")
+                : dark ? (texture == deathTexture ? "enemy/dark_slime_death.png"
+                        : texture == attackTexture ? "enemy/dark_slime_attack_idle.png" : "enemy/dark_slime_idle.png")
+                : texture == idleTexture ? "enemy/slime stand.png" : texture == moveTexture ? "enemy/slime walk.png"
+                : "enemy/slime attack.png";
+        float sourceBodyHeight = knight ? (texture == idleTexture ? 553f
+                : texture == moveTexture ? 423f : 347f) : dark ? (texture == deathTexture ? 107f : texture == attackTexture ? 330f : 650f)
+                : texture == idleTexture ? 299f : texture == moveTexture ? 223f : 216f;
+        Pixmap bodyPixels = new Pixmap(Gdx.files.internal(bodyAsset));
+        try {
         for (int i = 0; i < frameCount; i++) {
 
             frames[i] = new TextureRegion(
@@ -380,6 +432,14 @@ public class Enemy {
                     frameWidth,
                     frameHeight
             );
+            if (enemyType == EnemyType.SLIME && texture == moveTexture) {
+                Rectangle body = FrameContent.mainBody(bodyPixels, frames[i]);
+                frames[i] = new TextureRegion(texture, (int)body.x, (int)body.y, (int)body.width, (int)body.height);
+            }
+            frames[i] = new BodyFrame(frames[i], knight ? KNIGHT_BODY_HEIGHT : dark ? 70f : 52f, sourceBodyHeight, bodyPixels);
+        }
+        } finally {
+            if (bodyPixels != null) bodyPixels.dispose();
         }
 
         Animation<TextureRegion> animation =
@@ -400,6 +460,7 @@ public class Enemy {
         moving = false;
 
         updateHitTimers(deltaTime);
+        poiseTimer = Math.max(0, poiseTimer - deltaTime);
 
         if (!alive) {
             return;
@@ -524,15 +585,18 @@ public class Enemy {
         if (!attackDamageApplied
                 && attackAnimationTime >= attackHitTime) {
 
-            // 공격을 시작한 뒤 플레이어가 조금 움직여도 공격이 닿도록
-            // 시작 거리보다 판정 거리를 약간 넓게 잡는다.
-            if (distanceX <= attackRange + 35f
-                    && distanceY < collisionHeight) {
-                int healthBeforeHit = player.getHealth();
-                player.takeDamage(1, getCenterX());
-                if (player.getHealth() < healthBeforeHit) {
-                    System.out.println(getEnemyName() + " 공격 적중!");
-                }
+            float signedDistance = player.getCenterX() - getCenterX();
+            boolean inFront = facingRight ? signedDistance >= 0 : signedDistance <= 0;
+            if (distanceX <= attackRange && inFront && getAttackBounds().overlaps(player.getBounds())) {
+
+            	player.takeDamage(
+            	        1,
+            	        getCenterX()
+            	);
+
+                System.out.println(
+                        getEnemyName() + " 공격 적중!"
+                );
 
             } else {
 
@@ -681,6 +745,10 @@ public class Enemy {
     public void takeDamage(
             int damage,
             float attackerX) {
+        takeDamage(damage, attackerX, false);
+    }
+
+    public void takeDamage(int damage, float attackerX, boolean heavy) {
 
         if (!alive
                 || dying
@@ -697,12 +765,14 @@ public class Enemy {
         hitInvincibleTimer =
                 hitInvincibleDuration;
 
-        // 공격과 이동 취소
-        attacking = false;
-        moving = false;
-
-        attackAnimationTime = 0;
-        moveAnimationTime = 0;
+        boolean steady = !heavy && isBraced();
+        if (!steady) {
+            attacking = false; moving = false; attackAnimationTime = 0; moveAnimationTime = 0;
+            if (enemyType == EnemyType.KNIGHT) {
+                poiseTimer = heavy ? 0 : 1f;
+                if (heavy) attackCooldownTimer = Math.max(attackCooldownTimer, .65f);
+            }
+        }
 
         // 플레이어 반대 방향으로 넉백
         if (getCenterX() < attackerX) {
@@ -715,6 +785,8 @@ public class Enemy {
             knockbackVelocityX =
                     knockbackSpeed;
         }
+        if (steady) knockbackVelocityX = 0;
+        else if (heavy) knockbackVelocityX *= 1.2f;
 
         System.out.println(
                 getEnemyName() + " 체력: " + health
@@ -836,6 +908,35 @@ public class Enemy {
                     idleYOffset;
         }
 
+        // Repacked sheets preserve source pixels and share a fixed foot anchor.
+        if (attacking && !dying && enemyType != EnemyType.DARK_SLIME) {
+            AttackSheetLayout layout = AttackSheetLayout.get(enemyType == EnemyType.KNIGHT
+                    ? "enemy/k_attack.png" : "enemy/slime attack.png");
+            currentWidth = layout.width;
+            currentHeight = layout.height;
+            currentYOffset = -layout.foot;
+        }
+
+        if (currentFrame instanceof BodyFrame) {
+            BodyFrame frame = (BodyFrame) currentFrame;
+            currentWidth = frame.getRegionWidth() * frame.drawScale;
+            currentHeight = frame.getRegionHeight() * frame.drawScale;
+            currentYOffset = -frame.footFromBottom * frame.drawScale;
+        }
+
+        float deathAlpha = 1;
+        if (dying && enemyType == EnemyType.SLIME) {
+            float progress = Math.min(1, deathAnimationTime / deathAnimation.getAnimationDuration());
+            float scale = 1 - .75f * progress;
+            currentWidth *= scale;
+            currentHeight *= scale;
+            currentYOffset *= scale;
+            deathAlpha = 1 - progress;
+        } else if (dying) {
+            deathAlpha = Math.min(1, Math.max(0, (deathAnimation.getAnimationDuration()
+                    + deathLastFrameHold - deathAnimationTime) / deathLastFrameHold));
+        }
+
         float drawX =
                 x - (currentWidth - collisionWidth) / 2;
 
@@ -843,7 +944,7 @@ public class Enemy {
                 y + currentYOffset;
 
         // 피격 중 붉게 표시
-        if (hitFlashTimer > 0) {
+        if (hitFlashTimer > 0 && !dying) {
 
             spriteBatch.setColor(
                     1f,
@@ -858,7 +959,7 @@ public class Enemy {
                     1f,
                     1f,
                     1f,
-                    1f
+                    deathAlpha
             );
         }
 
@@ -902,14 +1003,24 @@ public class Enemy {
             return;
         }
 
-        float barWidth = 70;
-        float barHeight = 6;
+        float barWidth = collisionWidth + 8;
+        float barHeight = 4;
 
         float barX =
                 x + collisionWidth / 2
                 - barWidth / 2;
 
-        float barY = y + 105;
+        float barY = y + collisionHeight + 8;
+
+        if (isBraced()) {
+            shapeRenderer.setColor(.94f, .76f, .39f, 1);
+            shapeRenderer.rect(barX + barWidth / 2 - 3, barY + 8, 6, 6);
+            shapeRenderer.triangle(barX + barWidth / 2 - 3, barY + 8,
+                    barX + barWidth / 2 + 3, barY + 8, barX + barWidth / 2, barY + 4);
+        }
+
+        shapeRenderer.setColor(.38f, .34f, .26f, 1);
+        shapeRenderer.rect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
 
         // 체력바 배경
         shapeRenderer.setColor(
@@ -955,6 +1066,19 @@ public class Enemy {
         );
     }
 
+    public Rectangle getAttackBounds() {
+        float bottom = y + (enemyType == EnemyType.KNIGHT ? 12 : 0);
+        float height = enemyType == EnemyType.KNIGHT ? 72 : collisionHeight;
+        return new Rectangle(facingRight ? getCenterX() : getCenterX() - attackRange,
+                bottom, attackRange, height);
+    }
+
+    public void update(float deltaTime, Player player, float worldWidth) {
+        update(deltaTime, player);
+        float bounded = Math.max(0, Math.min(worldWidth - collisionWidth, x));
+        if (bounded != x) { x = bounded; knockbackVelocityX = 0; }
+    }
+
     private float getCenterX() {
 
         return x + collisionWidth / 2;
@@ -976,10 +1100,6 @@ public class Enemy {
     public boolean isAlive() {
 
         return alive;
-    }
-
-    public int getHealth() {
-        return health;
     }
 
     /** 체력이 0이 되는 순간 한 번만 골드를 지급한다. 사망 애니메이션과 무관하다. */
