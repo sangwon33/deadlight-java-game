@@ -1,0 +1,326 @@
+{
+  "version": 1,
+  "created": "2026-11-05",
+  "concept": "재를 꿰매는 자",
+  "intended_stage": 3,
+  "optional_miniboss": true,
+  "connected_to_game": true,
+  "generated_with": "built-in image_gen",
+  "coordinate_origin": "top_left",
+  "style": "hand-inked painterly cel shading matching current Deadlight art",
+  "environment_reference": "orchard.png",
+  "runtime_pivots_calibrated": true,
+  "runtime": {
+    "body_scale": 0.36,
+    "feet_anchors": [[213,372],[204,375],[199,367],[201,364],[189,355],[208,356],[206,349],[205,335]],
+    "effect_anchors": [[410,229],[219,231],[218,240],[217,238],[226,218],[230,307],[217,208],[224,217]],
+    "body_collision": [34,92],
+    "arena_floor": 1300,
+    "health": 168,
+    "damage": [22,26],
+    "rewards": {"gold":100,"attack_levels":1,"power_potions":1},
+    "manual_gameplay_verified": false
+  },
+  "integration_notes": [
+    "Connected to the optional stage-three stitcher's garden; controller SideBoss and renderer SideBossSprites.",
+    "Use the explicit frame regions; rounded integer cell dimensions differ by one pixel.",
+    "Preserve one common scale across all poses. Never scale independently to occupied alpha bounds.",
+    "Calibrate body/feet/weapon/effect pivots and validate transitions during game integration.",
+    "Eight pose keyframes are not a fully interpolated animation sequence.",
+    "Prop icons do not imply implemented gameplay rewards."
+  ],
+  "actor": {
+    "file": "miniboss_ashen_stitcher_v2.png",
+    "width": 1774,
+    "height": 887,
+    "columns": 4,
+    "rows": 2,
+    "sha256": "570b16097d31f4104d47a2701b7e600a109b40189c6f8b19ad3dfdcb9bbc6ab6",
+    "source_generated_file": "exec-7a78449e-d6ef-4024-a3d8-224cb1834ab4.png",
+    "frames": [
+      {
+        "index": 0,
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          136,
+          99,
+          332,
+          372
+        ],
+        "minimum_visible_margin": 72,
+        "name": "idle"
+      },
+      {
+        "index": 1,
+        "region": {
+          "x": 444,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          90,
+          100,
+          333,
+          375
+        ],
+        "minimum_visible_margin": 69,
+        "name": "stride"
+      },
+      {
+        "index": 2,
+        "region": {
+          "x": 887,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          72,
+          124,
+          319,
+          367
+        ],
+        "minimum_visible_margin": 72,
+        "name": "thrust_prepare"
+      },
+      {
+        "index": 3,
+        "region": {
+          "x": 1330,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          34,
+          141,
+          396,
+          364
+        ],
+        "minimum_visible_margin": 34,
+        "name": "thrust_strike"
+      },
+      {
+        "index": 4,
+        "region": {
+          "x": 0,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          110,
+          79,
+          324,
+          355
+        ],
+        "minimum_visible_margin": 79,
+        "name": "leap_rise"
+      },
+      {
+        "index": 5,
+        "region": {
+          "x": 444,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          83,
+          135,
+          352,
+          356
+        ],
+        "minimum_visible_margin": 83,
+        "name": "diagonal_plunge"
+      },
+      {
+        "index": 6,
+        "region": {
+          "x": 887,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          95,
+          92,
+          325,
+          349
+        ],
+        "minimum_visible_margin": 92,
+        "name": "hurt"
+      },
+      {
+        "index": 7,
+        "region": {
+          "x": 1330,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          56,
+          157,
+          361,
+          335
+        ],
+        "minimum_visible_margin": 56,
+        "name": "defeat"
+      }
+    ]
+  },
+  "effects": {
+    "file": "ashen_stitcher_fx_v1.png",
+    "width": 1774,
+    "height": 887,
+    "columns": 4,
+    "rows": 2,
+    "sha256": "2b393efe955663dc11d61c49b6e97793fccc4ca513c770d66d01732b00fe8404",
+    "source_generated_file": "exec-105333f1-66a6-43be-9e79-53001a25144e.png",
+    "frames": [
+      {
+        "index": 0,
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          77,
+          210,
+          413,
+          325
+        ],
+        "minimum_visible_margin": 31,
+        "name": "needle_horizontal"
+      },
+      {
+        "index": 1,
+        "region": {
+          "x": 444,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          98,
+          89,
+          340,
+          373
+        ],
+        "minimum_visible_margin": 71,
+        "name": "needle_diagonal"
+      },
+      {
+        "index": 2,
+        "region": {
+          "x": 887,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          66,
+          214,
+          370,
+          267
+        ],
+        "minimum_visible_margin": 66,
+        "name": "thread_segment"
+      },
+      {
+        "index": 3,
+        "region": {
+          "x": 1330,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          117,
+          122,
+          312,
+          355
+        ],
+        "minimum_visible_margin": 89,
+        "name": "knot_bead_prop"
+      },
+      {
+        "index": 4,
+        "region": {
+          "x": 0,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          81,
+          96,
+          371,
+          341
+        ],
+        "minimum_visible_margin": 73,
+        "name": "plunge_arc"
+      },
+      {
+        "index": 5,
+        "region": {
+          "x": 444,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          101,
+          90,
+          366,
+          307
+        ],
+        "minimum_visible_margin": 77,
+        "name": "landing_impact"
+      },
+      {
+        "index": 6,
+        "region": {
+          "x": 887,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          89,
+          89,
+          345,
+          328
+        ],
+        "minimum_visible_margin": 89,
+        "name": "mask_fragments"
+      },
+      {
+        "index": 7,
+        "region": {
+          "x": 1330,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          80,
+          111,
+          368,
+          323
+        ],
+        "minimum_visible_margin": 76,
+        "name": "ash_fade"
+      }
+    ]
+  }
+}

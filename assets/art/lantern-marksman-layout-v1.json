@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "note": "PNG pixels/alpha unmodified. Connected to LanternMarksman/LanternSprites; actor pivots in lantern-runtime-v1.properties, bolt-core pivots in LanternSprites. Row-major full cells.",
+  "atlases": [
+    {
+      "image": "art/enemy_lantern_marksman_v1.png",
+      "width": 1536,
+      "height": 1024,
+      "columns": 4,
+      "rows": 2,
+      "connected_to_game": true,
+      "sha256": "4f6369c47c2bd05191e50987f723e43e87dbd3f94422253947041380a0e8add3",
+      "frames": [
+        {
+          "index": 0,
+          "role": "idle",
+          "region": [
+            0,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            109,
+            88,
+            179,
+            382
+          ],
+          "margins_pixels": [
+            109,
+            88,
+            96,
+            42
+          ]
+        },
+        {
+          "index": 1,
+          "role": "walk_a",
+          "region": [
+            384,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            82,
+            99,
+            224,
+            370
+          ],
+          "margins_pixels": [
+            82,
+            99,
+            78,
+            43
+          ]
+        },
+        {
+          "index": 2,
+          "role": "walk_b",
+          "region": [
+            768,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            94,
+            97,
+            217,
+            372
+          ],
+          "margins_pixels": [
+            94,
+            97,
+            73,
+            43
+          ]
+        },
+        {
+          "index": 3,
+          "role": "aim",
+          "region": [
+            1152,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            82,
+            108,
+            233,
+            361
+          ],
+          "margins_pixels": [
+            82,
+            108,
+            69,
+            43
+          ]
+        },
+        {
+          "index": 4,
+          "role": "charge",
+          "region": [
+            0,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            85,
+            106,
+            244,
+            361
+          ],
+          "margins_pixels": [
+            85,
+            106,
+            55,
+            45
+          ]
+        },
+        {
+          "index": 5,
+          "role": "shoot_recoil",
+          "region": [
+            384,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            59,
+            118,
+            245,
+            348
+          ],
+          "margins_pixels": [
+            59,
+            118,
+            80,
+            46
+          ]
+        },
+        {
+          "index": 6,
+          "role": "hurt",
+          "region": [
+            768,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            76,
+            128,
+            220,
+            338
+          ],
+          "margins_pixels": [
+            76,
+            128,
+            88,
+            46
+          ]
+        },
+        {
+          "index": 7,
+          "role": "defeat",
+          "region": [
+            1152,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            44,
+            186,
+            277,
+            276
+          ],
+          "margins_pixels": [
+            44,
+            186,
+            63,
+            50
+          ]
+        }
+      ]
+    },
+    {
+      "image": "art/lantern_shot_fx_v1.png",
+      "width": 1536,
+      "height": 1024,
+      "columns": 4,
+      "rows": 2,
+      "connected_to_game": true,
+      "sha256": "59f1c19832d4c0b3d7c2837f7686a59f79d588c4e34e73bf07c750cea206551b",
+      "frames": [
+        {
+          "index": 0,
+          "role": "bolt_a",
+          "region": [
+            0,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            95,
+            227,
+            223,
+            72
+          ],
+          "margins_pixels": [
+            95,
+            227,
+            66,
+            213
+          ]
+        },
+        {
+          "index": 1,
+          "role": "bolt_b",
+          "region": [
+            384,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            85,
+            218,
+            233,
+            90
+          ],
+          "margins_pixels": [
+            85,
+            218,
+            66,
+            204
+          ]
+        },
+        {
+          "index": 2,
+          "role": "bolt_c",
+          "region": [
+            768,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            67,
+            202,
+            251,
+            108
+          ],
+          "margins_pixels": [
+            67,
+            202,
+            66,
+            202
+          ]
+        },
+        {
+          "index": 3,
+          "role": "charge_spark",
+          "region": [
+            1152,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            136,
+            205,
+            112,
+            107
+          ],
+          "margins_pixels": [
+            136,
+            205,
+            136,
+            200
+          ]
+        },
+        {
+          "index": 4,
+          "role": "muzzle_flash",
+          "region": [
+            0,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            132,
+            201,
+            181,
+            95
+          ],
+          "margins_pixels": [
+            132,
+            201,
+            71,
+            216
+          ]
+        },
+        {
+          "index": 5,
+          "role": "impact_contact",
+          "region": [
+            384,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            121,
+            176,
+            142,
+            136
+          ],
+          "margins_pixels": [
+            121,
+            176,
+            121,
+            200
+          ]
+        },
+        {
+          "index": 6,
+          "role": "impact_expand",
+          "region": [
+            768,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            71,
+            157,
+            227,
+            178
+          ],
+          "margins_pixels": [
+            71,
+            157,
+            86,
+            177
+          ]
+        },
+        {
+          "index": 7,
+          "role": "impact_fade",
+          "region": [
+            1152,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            73,
+            164,
+            245,
+            163
+          ],
+          "margins_pixels": [
+            73,
+            164,
+            66,
+            185
+          ]
+        }
+      ]
+    }
+  ]
+}

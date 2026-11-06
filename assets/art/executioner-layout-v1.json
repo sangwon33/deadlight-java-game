@@ -1,0 +1,424 @@
+{
+  "version": 1,
+  "concept": "일식의 처형자 / Eclipse Executioner",
+  "connected_to_game": true,
+  "stage": 4,
+  "generated_with": "built-in image_gen",
+  "coordinate_origin": "top_left",
+  "runtime": {
+    "body_scale": 0.38,
+    "body_collision": [
+      58,
+      124
+    ],
+    "feet_anchors": [
+      [
+        207,
+        400
+      ],
+      [
+        202,
+        399
+      ],
+      [
+        200,
+        402
+      ],
+      [
+        192,
+        403
+      ],
+      [
+        208,
+        395
+      ],
+      [
+        166,
+        395
+      ],
+      [
+        170,
+        395
+      ],
+      [
+        213,
+        398
+      ]
+    ],
+    "head_anchors": [
+      [
+        224,
+        95
+      ],
+      [
+        220,
+        105
+      ],
+      [
+        198,
+        125
+      ],
+      [
+        221,
+        153
+      ],
+      [
+        210,
+        133
+      ],
+      [
+        184,
+        155
+      ],
+      [
+        172,
+        112
+      ],
+      [
+        227,
+        217
+      ]
+    ],
+    "effect_anchors": [
+      [
+        236,
+        223
+      ],
+      [
+        208,
+        221
+      ],
+      [
+        222,
+        225
+      ],
+      [
+        225,
+        225
+      ],
+      [
+        226,
+        220
+      ],
+      [
+        216,
+        339
+      ],
+      [
+        222,
+        217
+      ],
+      [
+        222,
+        210
+      ]
+    ],
+    "halo_scale": 0.21,
+    "health": 240,
+    "damage": [
+      24,
+      28
+    ],
+    "death_seconds": 1.05,
+    "manual_gameplay_verified": false
+  },
+  "notes": [
+    "Source PNG pixels/alpha preserved without repainting, resampling or cropping.",
+    "Use explicit frame rectangles; rounded cell sizes differ by one pixel.",
+    "One body scale across all poses, per-pose boot/head pivots. Halo is drawn separately behind head.",
+    "Eight pose keyframes; timing and effect layers provide combat animation.",
+    "Grounded greatsword replaces old floating lance; result/record/retry integration uses FallenGod adapter."
+  ],
+  "actor": {
+    "file": "boss_executioner_v1.png",
+    "width": 1774,
+    "height": 887,
+    "columns": 4,
+    "rows": 2,
+    "sha256": "da667a9f07fe28886256277f2cf445ae0b75c689811f7ffdb63d2e5616dfc63f",
+    "frames": [
+      {
+        "index": 0,
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          97,
+          53,
+          362,
+          407
+        ],
+        "margin": 37,
+        "name": "idle"
+      },
+      {
+        "index": 1,
+        "region": {
+          "x": 444,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          92,
+          64,
+          370,
+          400
+        ],
+        "margin": 44,
+        "name": "stride"
+      },
+      {
+        "index": 2,
+        "region": {
+          "x": 887,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          86,
+          21,
+          384,
+          402
+        ],
+        "margin": 21,
+        "name": "overhead_prepare"
+      },
+      {
+        "index": 3,
+        "region": {
+          "x": 1330,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          74,
+          113,
+          407,
+          407
+        ],
+        "margin": 37,
+        "name": "downward_slam"
+      },
+      {
+        "index": 4,
+        "region": {
+          "x": 0,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          10,
+          91,
+          341,
+          395
+        ],
+        "margin": 10,
+        "name": "sweep_prepare"
+      },
+      {
+        "index": 5,
+        "region": {
+          "x": 444,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          16,
+          109,
+          433,
+          395
+        ],
+        "margin": 10,
+        "name": "horizontal_strike"
+      },
+      {
+        "index": 6,
+        "region": {
+          "x": 887,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          47,
+          21,
+          416,
+          395
+        ],
+        "margin": 21,
+        "name": "uppercut"
+      },
+      {
+        "index": 7,
+        "region": {
+          "x": 1330,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          39,
+          163,
+          396,
+          398
+        ],
+        "margin": 39,
+        "name": "defeat"
+      }
+    ]
+  },
+  "effects": {
+    "file": "executioner_fx_v1.png",
+    "width": 1774,
+    "height": 887,
+    "columns": 4,
+    "rows": 2,
+    "sha256": "0fc4012437ba6ede8937bcc7b6f73790e6dc6b4d9653d059ff1a13c2f54bb999",
+    "frames": [
+      {
+        "index": 0,
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          101,
+          94,
+          371,
+          352
+        ],
+        "margin": 73,
+        "name": "halo"
+      },
+      {
+        "index": 1,
+        "region": {
+          "x": 444,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          59,
+          86,
+          357,
+          356
+        ],
+        "margin": 59,
+        "name": "enraged_halo"
+      },
+      {
+        "index": 2,
+        "region": {
+          "x": 887,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          51,
+          107,
+          392,
+          344
+        ],
+        "margin": 51,
+        "name": "sweep_arc"
+      },
+      {
+        "index": 3,
+        "region": {
+          "x": 1330,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          70,
+          80,
+          379,
+          372
+        ],
+        "margin": 65,
+        "name": "uppercut_arc"
+      },
+      {
+        "index": 4,
+        "region": {
+          "x": 0,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          76,
+          72,
+          377,
+          357
+        ],
+        "margin": 67,
+        "name": "slam_arc"
+      },
+      {
+        "index": 5,
+        "region": {
+          "x": 444,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          74,
+          93,
+          358,
+          339
+        ],
+        "margin": 74,
+        "name": "ground_impact"
+      },
+      {
+        "index": 6,
+        "region": {
+          "x": 887,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          49,
+          148,
+          395,
+          286
+        ],
+        "margin": 48,
+        "name": "rush_streak"
+      },
+      {
+        "index": 7,
+        "region": {
+          "x": 1330,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          77,
+          74,
+          366,
+          345
+        ],
+        "margin": 74,
+        "name": "halo_disperse"
+      }
+    ]
+  }
+}

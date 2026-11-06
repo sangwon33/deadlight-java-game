@@ -1,0 +1,292 @@
+{
+  "version": 1,
+  "note": "PNG pixels/alpha unmodified. Row-major cells. Glasswing runtime uses glasswing-layout-v1.properties body pivots; player downslash remains unconnected.",
+  "atlases": [
+    {
+      "image": "art/hero_downslash_v1.png",
+      "width": 1254,
+      "height": 1254,
+      "columns": 2,
+      "rows": 2,
+      "connected_to_game": false,
+      "sha256": "3b3fd15882e1017b9b93fb1bdc053fe155d87c1f8f7616729708ab33ce1573e0",
+      "frames": [
+        {
+          "index": 0,
+          "role": "anticipation",
+          "region": [
+            0,
+            0,
+            627,
+            627
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            158,
+            92,
+            260,
+            412
+          ],
+          "margins_pixels": [
+            158,
+            92,
+            209,
+            123
+          ]
+        },
+        {
+          "index": 1,
+          "role": "downstroke",
+          "region": [
+            627,
+            0,
+            627,
+            627
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            136,
+            146,
+            278,
+            438
+          ],
+          "margins_pixels": [
+            136,
+            146,
+            213,
+            43
+          ]
+        },
+        {
+          "index": 2,
+          "role": "follow_through",
+          "region": [
+            0,
+            627,
+            627,
+            627
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            170,
+            127,
+            261,
+            455
+          ],
+          "margins_pixels": [
+            170,
+            127,
+            196,
+            45
+          ]
+        },
+        {
+          "index": 3,
+          "role": "rebound",
+          "region": [
+            627,
+            627,
+            627,
+            627
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            119,
+            112,
+            295,
+            347
+          ],
+          "margins_pixels": [
+            119,
+            112,
+            213,
+            168
+          ]
+        }
+      ]
+    },
+    {
+      "image": "art/enemy_glasswing_v1.png",
+      "width": 1536,
+      "height": 1024,
+      "columns": 4,
+      "rows": 2,
+      "connected_to_game": true,
+      "sha256": "6f281baa0931155a92867185db410851925a305d47076c19b4e6fe9d9d94fd74",
+      "frames": [
+        {
+          "index": 0,
+          "role": "hover_up",
+          "region": [
+            0,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            72,
+            76,
+            265,
+            315
+          ],
+          "margins_pixels": [
+            72,
+            76,
+            47,
+            121
+          ]
+        },
+        {
+          "index": 1,
+          "role": "hover_open",
+          "region": [
+            384,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            37,
+            151,
+            285,
+            240
+          ],
+          "margins_pixels": [
+            37,
+            151,
+            62,
+            121
+          ]
+        },
+        {
+          "index": 2,
+          "role": "hover_down",
+          "region": [
+            768,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            54,
+            186,
+            269,
+            255
+          ],
+          "margins_pixels": [
+            54,
+            186,
+            61,
+            71
+          ]
+        },
+        {
+          "index": 3,
+          "role": "hover_recover",
+          "region": [
+            1152,
+            0,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            36,
+            149,
+            287,
+            237
+          ],
+          "margins_pixels": [
+            36,
+            149,
+            61,
+            126
+          ]
+        },
+        {
+          "index": 4,
+          "role": "attack_prepare",
+          "region": [
+            0,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            60,
+            168,
+            288,
+            175
+          ],
+          "margins_pixels": [
+            60,
+            168,
+            36,
+            169
+          ]
+        },
+        {
+          "index": 5,
+          "role": "diving_attack",
+          "region": [
+            384,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            61,
+            177,
+            274,
+            187
+          ],
+          "margins_pixels": [
+            61,
+            177,
+            49,
+            148
+          ]
+        },
+        {
+          "index": 6,
+          "role": "hurt",
+          "region": [
+            768,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            54,
+            83,
+            271,
+            309
+          ],
+          "margins_pixels": [
+            54,
+            83,
+            59,
+            120
+          ]
+        },
+        {
+          "index": 7,
+          "role": "defeat",
+          "region": [
+            1152,
+            512,
+            384,
+            512
+          ],
+          "ink_bounds_local_alpha_over_32": [
+            71,
+            180,
+            237,
+            212
+          ],
+          "margins_pixels": [
+            71,
+            180,
+            76,
+            120
+          ]
+        }
+      ]
+    }
+  ]
+}
