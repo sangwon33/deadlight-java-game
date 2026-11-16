@@ -1,0 +1,326 @@
+{
+  "version": 1,
+  "created": "2026-11-05",
+  "concept": "뿌리에 잠든 순례자",
+  "intended_stage": 1,
+  "optional_miniboss": true,
+  "connected_to_game": true,
+  "generated_with": "built-in image_gen",
+  "coordinate_origin": "top_left",
+  "style": "hand-inked painterly cel shading matching current Deadlight art",
+  "environment_reference": "grotto.png",
+  "runtime_pivots_calibrated": true,
+  "runtime": {
+    "body_scale": 0.265,
+    "feet_anchors": [[200,406],[201,407],[201,403],[204,405],[189,405],[185,407],[226,406],[204,402]],
+    "effect_anchors": [[237,379],[220,413],[220,265],[217,235],[235,225],[230,230],[220,334],[212,335]],
+    "body_collision": [58,82],
+    "arena_floor": 940,
+    "health": 108,
+    "damage": [18,22],
+    "rewards": {"gold":60,"attack_levels":1,"heal_potions":1},
+    "manual_gameplay_verified": false
+  },
+  "integration_notes": [
+    "Connected to the optional stage-one root chapel; controller SideBoss and renderer SideBossSprites.",
+    "Use the explicit frame regions; rounded integer cell dimensions differ by one pixel.",
+    "Preserve one common scale across all poses. Never scale independently to occupied alpha bounds.",
+    "Calibrate body/feet/weapon/effect pivots and validate transitions during game integration.",
+    "Eight pose keyframes are not a fully interpolated animation sequence.",
+    "Prop icons do not imply implemented gameplay rewards."
+  ],
+  "actor": {
+    "file": "miniboss_root_pilgrim_v1.png",
+    "width": 1774,
+    "height": 887,
+    "columns": 4,
+    "rows": 2,
+    "sha256": "caa1abbebd727bf2f90de3b381ac8c6c92b2e73ae1632ccd885c8ca21d1a8d4b",
+    "source_generated_file": "exec-2320cd56-dab2-4475-8d0f-ff4133ba5b1c.png",
+    "frames": [
+      {
+        "index": 0,
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          72,
+          33,
+          337,
+          406
+        ],
+        "minimum_visible_margin": 33,
+        "name": "idle"
+      },
+      {
+        "index": 1,
+        "region": {
+          "x": 444,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          47,
+          35,
+          357,
+          407
+        ],
+        "minimum_visible_margin": 35,
+        "name": "stride"
+      },
+      {
+        "index": 2,
+        "region": {
+          "x": 887,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          65,
+          78,
+          345,
+          403
+        ],
+        "minimum_visible_margin": 41,
+        "name": "rush_prepare"
+      },
+      {
+        "index": 3,
+        "region": {
+          "x": 1330,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          57,
+          77,
+          392,
+          405
+        ],
+        "minimum_visible_margin": 39,
+        "name": "shoulder_rush"
+      },
+      {
+        "index": 4,
+        "region": {
+          "x": 0,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          62,
+          20,
+          362,
+          405
+        ],
+        "minimum_visible_margin": 20,
+        "name": "root_windup"
+      },
+      {
+        "index": 5,
+        "region": {
+          "x": 444,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          28,
+          28,
+          414,
+          407
+        ],
+        "minimum_visible_margin": 28,
+        "name": "root_sweep"
+      },
+      {
+        "index": 6,
+        "region": {
+          "x": 887,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          29,
+          47,
+          361,
+          406
+        ],
+        "minimum_visible_margin": 29,
+        "name": "hurt"
+      },
+      {
+        "index": 7,
+        "region": {
+          "x": 1330,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          37,
+          96,
+          392,
+          402
+        ],
+        "minimum_visible_margin": 37,
+        "name": "defeat"
+      }
+    ]
+  },
+  "effects": {
+    "file": "root_pilgrim_fx_v1.png",
+    "width": 1774,
+    "height": 887,
+    "columns": 4,
+    "rows": 2,
+    "sha256": "7d3766cc0fce717c654597b844789ad04ba88af98eb4229ead9582cdc5d26ee6",
+    "source_generated_file": "exec-9348db49-276a-4d4a-9153-8430f6f67063.png",
+    "frames": [
+      {
+        "index": 0,
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          123,
+          139,
+          352,
+          379
+        ],
+        "minimum_visible_margin": 65,
+        "name": "root_bud"
+      },
+      {
+        "index": 1,
+        "region": {
+          "x": 444,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          62,
+          50,
+          377,
+          413
+        ],
+        "minimum_visible_margin": 31,
+        "name": "root_spike"
+      },
+      {
+        "index": 2,
+        "region": {
+          "x": 887,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          32,
+          170,
+          406,
+          361
+        ],
+        "minimum_visible_margin": 32,
+        "name": "root_claws"
+      },
+      {
+        "index": 3,
+        "region": {
+          "x": 1330,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          105,
+          101,
+          330,
+          369
+        ],
+        "minimum_visible_margin": 75,
+        "name": "stone_shards"
+      },
+      {
+        "index": 4,
+        "region": {
+          "x": 0,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          48,
+          72,
+          418,
+          375
+        ],
+        "minimum_visible_margin": 26,
+        "name": "root_slash"
+      },
+      {
+        "index": 5,
+        "region": {
+          "x": 444,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          36,
+          160,
+          414,
+          300
+        ],
+        "minimum_visible_margin": 29,
+        "name": "rush_streak"
+      },
+      {
+        "index": 6,
+        "region": {
+          "x": 887,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          29,
+          91,
+          411,
+          334
+        ],
+        "minimum_visible_margin": 29,
+        "name": "ground_impact"
+      },
+      {
+        "index": 7,
+        "region": {
+          "x": 1330,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          70,
+          118,
+          354,
+          335
+        ],
+        "minimum_visible_margin": 70,
+        "name": "seed_relic_prop"
+      }
+    ]
+  }
+}

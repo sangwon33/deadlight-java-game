@@ -1,0 +1,307 @@
+{
+  "version": 1,
+  "concept": "The Undying Lamplighter / 꺼지지 않는 등불지기",
+  "intended_stage": 2,
+  "optional_miniboss": true,
+  "connected_to_game": true,
+  "runtime": {
+    "stage": 2,
+    "optional": true,
+    "controller": "Lamplighter",
+    "renderer": "LamplighterSprites",
+    "body_scale": 0.275,
+    "body_collision": [46, 94],
+    "feet_anchors": [[190,406],[175,407],[164,406],[161,405],[163,406],[174,404],[173,406],[192,401]],
+    "health": 144,
+    "damage": [20,24],
+    "rewards": {"gold":80,"attack_levels":1,"heal_potions":1},
+    "manual_gameplay_verified": false
+  },
+  "style": "hand-inked painterly cel shading matching current Deadlight assets",
+  "coordinate_origin": "top_left",
+  "generated_with": "built-in image_gen",
+  "actor": {
+    "file": "miniboss_lamplighter_v1.png",
+    "width": 1774,
+    "height": 887,
+    "columns": 4,
+    "rows": 2,
+    "facing": "right",
+    "frames": [
+      {
+        "index": 0,
+        "name": "idle",
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          63,
+          33,
+          377,
+          406
+        ]
+      },
+      {
+        "index": 1,
+        "name": "stride",
+        "region": {
+          "x": 444,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          35,
+          35,
+          377,
+          407
+        ]
+      },
+      {
+        "index": 2,
+        "name": "thrust_prepare",
+        "region": {
+          "x": 887,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          33,
+          51,
+          422,
+          406
+        ]
+      },
+      {
+        "index": 3,
+        "name": "thrust_strike",
+        "region": {
+          "x": 1330,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          9,
+          97,
+          433,
+          405
+        ]
+      },
+      {
+        "index": 4,
+        "name": "lantern_cast",
+        "region": {
+          "x": 0,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          30,
+          13,
+          431,
+          406
+        ]
+      },
+      {
+        "index": 5,
+        "name": "chain_pull",
+        "region": {
+          "x": 444,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          20,
+          35,
+          418,
+          404
+        ]
+      },
+      {
+        "index": 6,
+        "name": "hurt",
+        "region": {
+          "x": 887,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          27,
+          50,
+          352,
+          406
+        ]
+      },
+      {
+        "index": 7,
+        "name": "defeat",
+        "region": {
+          "x": 1330,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          19,
+          130,
+          432,
+          401
+        ]
+      }
+    ]
+  },
+  "effects": {
+    "file": "lamplighter_fx_v1.png",
+    "width": 1774,
+    "height": 887,
+    "columns": 4,
+    "rows": 2,
+    "frames": [
+      {
+        "index": 0,
+        "name": "lantern_lit",
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          193,
+          144,
+          315,
+          366
+        ]
+      },
+      {
+        "index": 1,
+        "name": "lantern_thrown",
+        "region": {
+          "x": 444,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          116,
+          182,
+          330,
+          349
+        ]
+      },
+      {
+        "index": 2,
+        "name": "lantern_unlit",
+        "region": {
+          "x": 887,
+          "y": 0,
+          "width": 443,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          145,
+          142,
+          268,
+          364
+        ]
+      },
+      {
+        "index": 3,
+        "name": "chain_segment",
+        "region": {
+          "x": 1330,
+          "y": 0,
+          "width": 444,
+          "height": 444
+        },
+        "visible_bounds_alpha_gt_80": [
+          69,
+          241,
+          315,
+          277
+        ]
+      },
+      {
+        "index": 4,
+        "name": "cast_arc",
+        "region": {
+          "x": 0,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          139,
+          120,
+          383,
+          276
+        ]
+      },
+      {
+        "index": 5,
+        "name": "thrust_streak",
+        "region": {
+          "x": 444,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          100,
+          157,
+          349,
+          224
+        ]
+      },
+      {
+        "index": 6,
+        "name": "impact",
+        "region": {
+          "x": 887,
+          "y": 444,
+          "width": 443,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          97,
+          86,
+          309,
+          279
+        ]
+      },
+      {
+        "index": 7,
+        "name": "flame_fade",
+        "region": {
+          "x": 1330,
+          "y": 444,
+          "width": 444,
+          "height": 443
+        },
+        "visible_bounds_alpha_gt_80": [
+          126,
+          97,
+          267,
+          269
+        ]
+      }
+    ]
+  },
+  "integration_notes": [
+    "Source PNGs preserved without resampling, cropping, repainting or alpha modification.",
+    "Use the explicit regions; generated dimensions do not divide exactly by grid size. Region widths/heights differ by one pixel.",
+    "Visible alpha > 80 bounds stay inside every region. Low-alpha antialiasing/halo pixels may extend beyond visible bounds.",
+    "Use one world scale for all actor poses, independent of occupied alpha bounds.",
+    "Before runtime integration, calibrate per-frame foot/body/weapon pivots and review animation transitions in-game. These are pose keyframes, not a fully tweened animation.",
+    "Do not use the entire sprite or its long spear as the body collision rectangle.",
+    "Actor sheets include held equipment. Avoid drawing a second projectile lantern over the held lantern; separate release and recovery rendering when implementing."
+  ]
+}
