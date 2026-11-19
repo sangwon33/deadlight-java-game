@@ -1272,7 +1272,7 @@ public class Main extends ApplicationAdapter {
 
         drawPlatformTiles();
 
-        gimmicks.draw(spriteBatch,uiTheme,uiFont,player,terrainTiles.get(stage2GroundTileTexture),worldProps);
+        gimmicks.draw(spriteBatch,uiTheme,terrainTiles.get(stage2GroundTileTexture),worldProps);
         if(lamplighter!=null)lamplighter.drawRoom(spriteBatch,uiTheme,uiFont,player,terrainTiles.get(stage2GroundTileTexture));
         if(sideBoss!=null)sideBoss.drawRoom(spriteBatch,uiTheme,uiFont,player,terrainTiles.get(groundTileTexture));
         drawMerchant();
@@ -1324,6 +1324,7 @@ public class Main extends ApplicationAdapter {
 
         spriteBatch.begin();
 
+        gimmicks.drawLabels(spriteBatch, uiTheme, uiFont, player);
         enemyAttackView.labels(spriteBatch, uiFont, uiTheme, enemies, fallenGod);
         feedback.drawText(spriteBatch, uiFont, uiTheme);
         spriteBatch.end();
