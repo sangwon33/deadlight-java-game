@@ -19,6 +19,7 @@ final class ExecutionerSprites implements AutoCloseable {
         actor=load(data.get("actor").getString("file"));Texture other;
         try{other=load(data.get("effects").getString("file"));}catch(RuntimeException e){actor.dispose();throw e;}
         fx=other;poses=regions(actor,data.get("actor").get("frames"));effects=regions(fx,data.get("effects").get("frames"));
+        ActorFrames.isolate(actor,"art/"+data.get("actor").getString("file"),poses,feet,heads);
     }
     private static Texture load(String file){Texture t=new Texture(Gdx.files.internal("art/"+file));t.setFilter(Texture.TextureFilter.Linear,Texture.TextureFilter.Linear);return t;}
     private static float[][] points(JsonValue p){float[][] out=new float[8][2];for(int i=0;i<8;i++)out[i]=p.get(i).asFloatArray();return out;}
@@ -29,9 +30,11 @@ final class ExecutionerSprites implements AutoCloseable {
         float alpha=boss.alive()?1:Math.max(0,1-boss.deathTime()/1.05f);
         effect(b,boss.alive()?(boss.enraged()?1:0):7,hx,hy,.21f,0,alpha*.85f);
         TextureRegion r=poses[frame];float ax=feet[frame][0]*scale,packed=b.getPackedColor();
+        if(b instanceof ReadabilityBatch style)style.bossArt();
         b.setColor(1,boss.flash()>0?(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.78f:.48f):1,boss.flash()>0?(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.78f:.52f):1,alpha);
         b.draw(r,boss.right()?boss.cx()-ax:boss.cx()+ax,boss.floor()-(r.getRegionHeight()-feet[frame][1])*scale,
                 direction*r.getRegionWidth()*scale,r.getRegionHeight()*scale);b.setPackedColor(packed);
+        if(b instanceof ReadabilityBatch style)style.normal();
     }
     void effect(SpriteBatch b,int index,float x,float y,float size,float angle,float alpha){
         TextureRegion r=effects[index];float ox=cores[index][0]*size,oy=(r.getRegionHeight()-cores[index][1])*size,packed=b.getPackedColor();

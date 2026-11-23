@@ -20,6 +20,7 @@ final class GameSettings {
         BRIGHTNESS(1,"brightness","게임 화면 밝기","어두운 지형과 배경을 더 밝게 봅니다",100,75,130,5,Kind.NUMBER),
         SHOW_FPS(1,"showFps","FPS 표시","화면 아래에 현재 프레임 수를 표시합니다",false),
         MINIMAP(2,"showMinimap","미니맵","오른쪽 위 지도만 숨기거나 표시합니다",true),
+        PLAYER_STATS(2,"showPlayerStats","스탯창 상시 표시","Tab을 누르지 않아도 현재 능력치를 표시합니다",false),
         DAMAGE_NUMBERS(2,"damageNumbers","피해 숫자","공격과 피격 때 피해량을 표시합니다",true),
         ENEMY_BARS(2,"enemyBars","적 머리 위 체력바","수문장 포함 · 보스의 상단 체력바는 유지",0,"기본","항상","숨김"),
         ATTACK_CUES(2,"attackCues","공격 예고와 빈틈","적의 공격 범위와 반격 기회를 표시합니다",true),

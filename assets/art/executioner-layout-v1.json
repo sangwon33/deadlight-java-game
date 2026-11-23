@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "concept": "일식의 처형자 / Eclipse Executioner",
   "connected_to_game": true,
   "stage": 4,
@@ -14,35 +14,35 @@
     "feet_anchors": [
       [
         207,
-        400
+        406
       ],
       [
         202,
-        399
+        406
       ],
       [
         200,
-        402
+        406
       ],
       [
         192,
-        403
+        406
       ],
       [
         208,
-        395
+        399
       ],
       [
         166,
-        395
+        399
       ],
       [
         170,
-        395
+        400
       ],
       [
         213,
-        398
+        400
       ]
     ],
     "head_anchors": [
@@ -130,7 +130,7 @@
     "Grounded greatsword replaces old floating lance; result/record/retry integration uses FallenGod adapter."
   ],
   "actor": {
-    "file": "boss_executioner_v1.png",
+    "file": "boss-executioner-v2.png",
     "width": 1774,
     "height": 887,
     "columns": 4,

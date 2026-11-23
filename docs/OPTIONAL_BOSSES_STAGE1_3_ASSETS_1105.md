@@ -5,8 +5,8 @@
 ## 최종 파일
 | 대상 | 캐릭터 8포즈 | 장비·이펙트 8종 | 프레임 정보 |
 | --- | --- | --- | --- |
-| 1스테이지 뿌리에 잠든 순례자 | `assets/art/miniboss_root_pilgrim_v1.png` | `assets/art/root_pilgrim_fx_v1.png` | `assets/art/root-pilgrim-layout-v1.json` |
-| 3스테이지 재를 꿰매는 자 | `assets/art/miniboss_ashen_stitcher_v2.png` | `assets/art/ashen_stitcher_fx_v1.png` | `assets/art/ashen-stitcher-layout-v1.json` |
+| 1스테이지 뿌리에 잠든 순례자 | `assets/art/miniboss-root-pilgrim-v2.png` | `assets/art/root_pilgrim_fx_v1.png` | `assets/art/root-pilgrim-layout-v1.json` |
+| 3스테이지 재를 꿰매는 자 | `assets/art/miniboss-ashen-stitcher-v3.png` | `assets/art/ashen_stitcher_fx_v1.png` | `assets/art/ashen-stitcher-layout-v1.json` |
 
 4개 PNG 모두 실제 출력은 RGBA 1774×887입니다. 4열×2행의 포즈/효과 시트이며, 8개 키프레임을 갖습니다. 모든 중간 동작을 갖춘 완성 애니메이션은 아닙니다.
 

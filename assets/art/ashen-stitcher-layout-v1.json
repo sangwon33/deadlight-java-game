@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "created": "2026-11-05",
   "concept": "재를 꿰매는 자",
   "intended_stage": 3,
@@ -30,7 +30,7 @@
     "Prop icons do not imply implemented gameplay rewards."
   ],
   "actor": {
-    "file": "miniboss_ashen_stitcher_v2.png",
+    "file": "miniboss-ashen-stitcher-v3.png",
     "width": 1774,
     "height": 887,
     "columns": 4,

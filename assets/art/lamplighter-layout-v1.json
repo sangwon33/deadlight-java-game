@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "concept": "The Undying Lamplighter / 꺼지지 않는 등불지기",
   "intended_stage": 2,
   "optional_miniboss": true,
@@ -21,7 +21,7 @@
   "coordinate_origin": "top_left",
   "generated_with": "built-in image_gen",
   "actor": {
-    "file": "miniboss_lamplighter_v1.png",
+    "file": "miniboss-lamplighter-v2.png",
     "width": 1774,
     "height": 887,
     "columns": 4,

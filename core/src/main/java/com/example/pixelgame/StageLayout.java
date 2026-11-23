@@ -132,7 +132,7 @@ final class StageLayout {
         if(x<x(stage,850))return new Hint(stage*100,"폐허의 갈림길","발판을 따라 보급품을 찾아보세요",KeyBindings.name(KeyBindings.Action.LOOK_DOWN)+" 길게 · 살펴보기 / 짧게 · 아래로");
         if(x<x(stage,1800))return new Hint(stage*100+1,"발판 아래에도 길이 있습니다","발판 위에서 "+down+"를 짧게 눌렀다 떼세요","아래를 살펴본 뒤 안전하게 착지하세요");
         if(x<x(stage,2600))return new Hint(stage*100+2,"바람을 타고 위로","빛나는 발판은 높이 솟아오릅니다","움직이는 승강 발판도 이용하세요");
-        if(x<x(stage,3400))return new Hint(stage*100+3,"봉인된 길과 높은 탑","레버 근처에서 "+interact+" · 문 열기","위쪽 발판과 석문이 같은 길로 이어집니다");
+        if(x<x(stage,3400))return new Hint(stage*100+3,"높은 탑의 갈림길","지상 길이나 위쪽 발판으로 이동하세요","분출구를 살피고 안전한 길로 건너세요");
         return new Hint(stage*100+4,"다음 지역으로","가시는 회피하거나 점프로 넘으세요","수문장을 쓰러뜨리고 출구로 이동");
     }
 }

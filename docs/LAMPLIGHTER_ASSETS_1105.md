@@ -3,7 +3,7 @@
 현재 프로젝트의 성벽 지역과 등불 사수에 맞춰 만든 선택형 중간 보스의 에셋 제작 기록입니다. 후속 요청으로 2026-11-05에 2스테이지에 연결했습니다. 현재 기능과 검증 내용은 `LAMPLIGHTER_STAGE2_1105.md`를 참고하세요. 아래는 원본 이미지 제작 당시 기록입니다.
 
 ## 결과물
-- `assets/art/miniboss_lamplighter_v1.png`: RGBA 1774×887, 4열×2행, 캐릭터 포즈 8개.
+- `assets/art/miniboss-lamplighter-v2.png`: RGBA 1774×887, 4열×2행, 캐릭터 포즈 8개.
 - `assets/art/lamplighter_fx_v1.png`: RGBA 1774×887, 4열×2행, 분리된 장비/효과 8개.
 - `assets/art/lamplighter-layout-v1.json`: 실제 출력 크기에 맞춘 프레임 영역과 연결 시 주의점.
 

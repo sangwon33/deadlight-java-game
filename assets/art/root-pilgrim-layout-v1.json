@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "created": "2026-11-05",
   "concept": "뿌리에 잠든 순례자",
   "intended_stage": 1,
@@ -30,7 +30,7 @@
     "Prop icons do not imply implemented gameplay rewards."
   ],
   "actor": {
-    "file": "miniboss_root_pilgrim_v1.png",
+    "file": "miniboss-root-pilgrim-v2.png",
     "width": 1774,
     "height": 887,
     "columns": 4,

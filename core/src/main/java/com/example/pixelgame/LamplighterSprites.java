@@ -12,11 +12,12 @@ final class LamplighterSprites implements AutoCloseable {
     private final Texture actor,fx;
     private final TextureRegion[] poses,effects;
     private static final float SCALE=.275f;
-    private static final float[][] FEET={{190,406},{175,407},{164,406},{161,405},{163,406},{174,404},{173,406},{192,401}};
+    private final float[][] feet=new float[8][2];
     private static final float[][] CORE={{254,255},{254,267},{206,253},{192,259},{261,198},{225,190},{203,182},{197,183}};
     LamplighterSprites(){
-        actor=load("art/miniboss_lamplighter_v1.png");fx=load("art/lamplighter_fx_v1.png");
         JsonValue data=new JsonReader().parse(Gdx.files.internal("art/lamplighter-layout-v1.json"));
+        actor=load("art/"+data.get("actor").getString("file"));fx=load("art/lamplighter_fx_v1.png");
+        for(int i=0;i<8;i++)feet[i]=data.get("runtime").get("feet_anchors").get(i).asFloatArray();
         poses=regions(actor,data.get("actor").get("frames"));effects=regions(fx,data.get("effects").get("frames"));
     }
     private static Texture load(String path){Texture t=new Texture(Gdx.files.internal(path));t.setFilter(Texture.TextureFilter.Linear,Texture.TextureFilter.Linear);return t;}
@@ -24,11 +25,12 @@ final class LamplighterSprites implements AutoCloseable {
         TextureRegion[] out=new TextureRegion[8];for(JsonValue f:frames){JsonValue r=f.get("region");out[f.getInt("index")]=new TextureRegion(t,r.getInt("x"),r.getInt("y"),r.getInt("width"),r.getInt("height"));}return out;
     }
     void actor(SpriteBatch b,Lamplighter boss){
-        int frame=boss.frame();TextureRegion r=poses[frame];float ax=FEET[frame][0]*SCALE;
+        if(b instanceof ReadabilityBatch style)style.bossArt();
+        int frame=boss.frame();TextureRegion r=poses[frame];float ax=feet[frame][0]*SCALE;
         float packed=b.getPackedColor();float alpha=boss.defeated()?Math.max(.25f,1-boss.deathTime()*.3f):1;
         b.setColor(1,boss.flash()>0?(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.78f:.5f):1,boss.flash()>0?(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.78f:.55f):1,alpha);
         // After release, use the guarded body pose; the moving lantern is rendered separately.
-        if(boss.lanternOut&&boss.phase()==Lamplighter.Phase.CAST){frame=0;r=poses[0];ax=FEET[0][0]*SCALE;}
+        if(boss.lanternOut&&boss.phase()==Lamplighter.Phase.CAST){frame=0;r=poses[0];ax=feet[0][0]*SCALE;}
         if(boss.lanternOut){
             // Hide only the held lantern/loose chain through draw regions, without editing PNGs.
             int cutX=frame==5?285:55,cutY=frame==5?160:269;
@@ -37,15 +39,16 @@ final class LamplighterSprites implements AutoCloseable {
             piece(b,r,frame,boss,0,cutY+cutH,r.getRegionWidth(),r.getRegionHeight()-cutY-cutH);
             piece(b,r,frame,boss,0,cutY,cutX,cutH);
             piece(b,r,frame,boss,cutX+cutW,cutY,r.getRegionWidth()-cutX-cutW,cutH);
-        }else b.draw(r,boss.right()?boss.cx()-ax:boss.cx()+ax,Lamplighter.FLOOR-(r.getRegionHeight()-FEET[frame][1])*SCALE,
+        }else b.draw(r,boss.right()?boss.cx()-ax:boss.cx()+ax,Lamplighter.FLOOR-(r.getRegionHeight()-feet[frame][1])*SCALE,
                 (boss.right()?1:-1)*r.getRegionWidth()*SCALE,r.getRegionHeight()*SCALE);
         b.setPackedColor(packed);
+        if(b instanceof ReadabilityBatch style)style.normal();
     }
     private void piece(SpriteBatch b,TextureRegion source,int frame,Lamplighter boss,int x,int y,int w,int h){
         if(w<=0||h<=0)return;
         TextureRegion part=new TextureRegion(source,x,y,w,h);
-        float local=(x-FEET[frame][0])*SCALE;
-        b.draw(part,boss.cx()+(boss.right()?local:-local),Lamplighter.FLOOR+(FEET[frame][1]-y-h)*SCALE,
+        float local=(x-feet[frame][0])*SCALE;
+        b.draw(part,boss.cx()+(boss.right()?local:-local),Lamplighter.FLOOR+(feet[frame][1]-y-h)*SCALE,
                 (boss.right()?1:-1)*w*SCALE,h*SCALE);
     }
     void effect(SpriteBatch b,int index,float x,float y,float scale,float angle,float alpha){

@@ -21,6 +21,7 @@ final class SideBossSprites implements AutoCloseable {
         Texture effectsTexture;
         try{effectsTexture=load(data.get("effects").getString("file"));}catch(RuntimeException e){actor.dispose();throw e;}
         fx=effectsTexture;poses=regions(actor,data.get("actor").get("frames"));effects=regions(fx,data.get("effects").get("frames"));
+        if(arena.roots())ActorFrames.isolate(actor,"art/"+data.get("actor").getString("file"),poses,feet,null);
     }
     private static Texture load(String file){Texture t=new Texture(Gdx.files.internal("art/"+file));t.setFilter(Texture.TextureFilter.Linear,Texture.TextureFilter.Linear);return t;}
     private static float[][] points(JsonValue values){float[][] a=new float[8][2];for(int i=0;i<8;i++)a[i]=values.get(i).asFloatArray();return a;}
@@ -28,12 +29,14 @@ final class SideBossSprites implements AutoCloseable {
         TextureRegion[] out=new TextureRegion[8];for(JsonValue f:frames){JsonValue r=f.get("region");out[f.getInt("index")]=new TextureRegion(t,r.getInt("x"),r.getInt("y"),r.getInt("width"),r.getInt("height"));}return out;
     }
     void actor(SpriteBatch b,SideBoss boss){
+        if(b instanceof ReadabilityBatch style)style.bossArt();
         int frame=boss.frame();TextureRegion r=poses[frame];float ax=feet[frame][0]*scale;
         float packed=b.getPackedColor(),alpha=boss.defeated()?Math.max(.25f,1-boss.deathTime()*.3f):1;
         b.setColor(1,boss.flash()>0?(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.78f:.5f):1,boss.flash()>0?(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.78f:.55f):1,alpha);
         b.draw(r,boss.right()?boss.cx()-ax:boss.cx()+ax,boss.body.y-(r.getRegionHeight()-feet[frame][1])*scale,
                 (boss.right()?1:-1)*r.getRegionWidth()*scale,r.getRegionHeight()*scale);
         b.setPackedColor(packed);
+        if(b instanceof ReadabilityBatch style)style.normal();
     }
     void effect(SpriteBatch b,int index,float x,float y,float size,float angle,float alpha){
         TextureRegion r=effects[index];float ox=cores[index][0]*size,oy=(r.getRegionHeight()-cores[index][1])*size;

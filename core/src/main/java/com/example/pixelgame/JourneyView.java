@@ -16,8 +16,9 @@ final class JourneyView {
         long tenths = Math.max(0, Math.round(seconds * 10));
         return String.format(Locale.ROOT, "%02d:%02d.%d", tenths / 600, (tenths / 10) % 60, tenths % 10);
     }
-    static Rectangle skipBounds(float left) { return new Rectangle(left + 228, 266, 64, 20); }
-    static Rectangle tutorialBounds(float left) { return new Rectangle(left+12,146,292,144); }
+    static Rectangle skipBounds(float left) { return skipBounds(left,0); }
+    static Rectangle skipBounds(float left,float offsetY) { return new Rectangle(left+348,264+offsetY,60,20); }
+    static Rectangle tutorialBounds(float left) { return new Rectangle(left+148,176,268,112); }
 
     void progress(SpriteBatch b, BitmapFont f, float left, int stage, int defeated, int total,
                   float position, float worldWidth, FallenGod boss, RunStats stats, int guardians) {
@@ -28,17 +29,21 @@ final class JourneyView {
     }
 
     void tutorial(SpriteBatch b,BitmapFont f,float left,TutorialGuide guide,boolean hovered,boolean pressed){
+        tutorial(b,f,left,guide,hovered,pressed,0);
+    }
+    void tutorial(SpriteBatch b,BitmapFont f,float left,TutorialGuide guide,boolean hovered,boolean pressed,float offsetY){
         if(!guide.visible())return;
         Rectangle panel=tutorialBounds(left);
+        panel.y+=offsetY;
         ui.panel(b,panel.x,panel.y,panel.width,panel.height);
         // Keep the header/button, wrapped instruction, detail and progress in separate rows.
-        ui.label(b,f,guide.title(),new Rectangle(left+16,266,guide.finished()?282:202,20),
+        ui.label(b,f,guide.title(),new Rectangle(left+152,264+offsetY,guide.finished()?260:188,20),
                 .76f,UiTheme.GOLD,Align.left);
-        ui.paragraph(b,f,guide.instruction(),new Rectangle(left+22,204,270,50),.77f,UiTheme.TEXT);
-        ui.paragraph(b,f,guide.detail(),new Rectangle(left+22,162,270,36),.68f,UiTheme.MUTED);
-        float width=(270-(TutorialGuide.LESSON_COUNT-1)*5f)/TutorialGuide.LESSON_COUNT;
-        for(int i=0;i<TutorialGuide.LESSON_COUNT;i++)ui.rect(b,left+22+i*(width+5),151,width,2,i<guide.step()?UiTheme.SUCCESS:UiTheme.BORDER,1);
-        if(!guide.finished())ui.button(b,f,skipBounds(left),"건너뛰기",true,hovered,pressed,.65f);
+        ui.paragraph(b,f,guide.instruction(),new Rectangle(left+158,215+offsetY,248,42),.77f,UiTheme.TEXT);
+        ui.paragraph(b,f,guide.detail(),new Rectangle(left+158,184+offsetY,248,26),.68f,UiTheme.MUTED);
+        float width=(248-(TutorialGuide.LESSON_COUNT-1)*5f)/TutorialGuide.LESSON_COUNT;
+        for(int i=0;i<TutorialGuide.LESSON_COUNT;i++)ui.rect(b,left+158+i*(width+5),180+offsetY,width,2,i<guide.step()?UiTheme.SUCCESS:UiTheme.BORDER,1);
+        if(!guide.finished())ui.button(b,f,skipBounds(left,offsetY),"건너뛰기",true,hovered,pressed,.65f);
     }
 
     void tutorialWorld(SpriteBatch b,BitmapFont f,TutorialGuide guide){

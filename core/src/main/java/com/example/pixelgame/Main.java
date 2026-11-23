@@ -95,7 +95,6 @@ public class Main extends ApplicationAdapter {
 
     private static final float GROUND_Y = 60f;
 
-    private static final float GROUND_TILE_SIZE = 64f;
 
     private static final float PLATFORM_TILE_WIDTH = 96f;
 
@@ -238,6 +237,7 @@ public class Main extends ApplicationAdapter {
 
     private Texture platformTileTexture;
     private final IdentityHashMap<Texture, TerrainTile> terrainTiles = new IdentityHashMap<>();
+    private GroundArt groundArt;
 
     private Music backgroundMusic;
 
@@ -494,7 +494,7 @@ public class Main extends ApplicationAdapter {
         platforms.clear();
         platforms.addAll(StageLayout.platforms(currentStage));
         solidFloors.clear();solidFloors.addAll(StageLayout.floors(currentStage));
-        gimmicks.enter(currentStage,platforms,solidFloors);
+        gimmicks.enter(currentStage,platforms);
         if(lamplighter!=null)lamplighter.close();
         lamplighter=currentStage==STAGE_TWO?new LamplighterEncounter(solidFloors):null;
         if(sideBoss!=null)sideBoss.close();
@@ -622,7 +622,7 @@ public class Main extends ApplicationAdapter {
         }
         if (currentStage == STAGE_TUTORIAL && tutorial.visible() && !tutorial.finished()
                 && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
-                && isMouseInside(JourneyView.skipBounds(tutorialPanelLeft()))) {
+                && isMouseInside(JourneyView.skipBounds(tutorialPanelLeft(),tutorialPanelOffsetY()))) {
             tutorial.skip(); beginStageTransition(STAGE_ONE, "모험을 시작합니다."); return;
         }
         merchantAnimationTime += deltaTime;
@@ -672,7 +672,6 @@ public class Main extends ApplicationAdapter {
         checkPlayerAttack();
         if (currentStage != STAGE_TUTORIAL && player.isAlive()) updateRegionGuide(deltaTime);
         if(gimmicks.takeHealedNotice())regionGuide.notice("회복 우물","체력 +30 · 우물의 빛이 사라졌습니다");
-        if(gimmicks.takeOpenedNotice())regionGuide.notice("석문 개방","지상 지름길이 열렸습니다","지도를 보려면 Tab을 누르세요");
         claimLamplighterReward();
         claimSideBossReward();
         if (currentStage == STAGE_TUTORIAL) {
@@ -1379,6 +1378,7 @@ public class Main extends ApplicationAdapter {
     }
 
     private void drawGroundTiles() {
+        if(groundArt==null)groundArt=new GroundArt();
         TerrainTile tile=terrainTiles.get(groundTileTexture);
         float left=camera.position.x-VIEW_WIDTH/2-64,right=left+VIEW_WIDTH+128;
         var floors=StageLayout.floors(currentStage);
@@ -1386,14 +1386,9 @@ public class Main extends ApplicationAdapter {
         for(Rectangle floor:floors)lowest=Math.min(lowest,floor.y+floor.height);
         for(Rectangle floor:floors){
             float top=floor.y+floor.height;
-            if(top<camera.position.y-VIEW_HEIGHT/2-96||floor.y>camera.position.y+VIEW_HEIGHT/2)continue;
-            for(float x=floor.x;x<floor.x+floor.width;x+=GROUND_TILE_SIZE){
-                if(x+GROUND_TILE_SIZE<left||x>right)continue;
-                float width=Math.min(GROUND_TILE_SIZE,floor.x+floor.width-x),height=Math.min(96,floor.height);
-                if(Math.abs(top-lowest)<.01f)tile.drawBelow(spriteBatch,x,tile.drawY(top,height)+.5f,width,
-                        StageLayout.bottom(currentStage)-CameraLook.DOWN_DISTANCE-64);
-                tile.draw(spriteBatch,x,top,width,height);
-            }
+            float bottom=Math.abs(top-lowest)<.01f?StageLayout.bottom(currentStage)-CameraLook.DOWN_DISTANCE-64:floor.y;
+            if(top<camera.position.y-VIEW_HEIGHT/2||bottom>camera.position.y+VIEW_HEIGHT/2)continue;
+            groundArt.draw(spriteBatch,tile,floor,bottom,left,right,currentStage,uiTheme);
         }
     }
 
@@ -1506,8 +1501,11 @@ public class Main extends ApplicationAdapter {
         float x=ink.x-camera.position.x+VIEW_WIDTH/2,y=ink.y-camera.position.y+VIEW_HEIGHT/2;
         Rectangle panel=JourneyView.tutorialBounds(screenLeft());
         if(x<panel.x+panel.width&&x+ink.width>panel.x&&y<panel.y+panel.height&&y+ink.height>panel.y)
-            return screenLeft()+VIEW_WIDTH-panel.width-24;
+            return screenLeft()+VIEW_WIDTH-(panel.x-screenLeft())-panel.width-12;
         return screenLeft();
+    }
+    private float tutorialPanelOffsetY(){
+        return currentStage==STAGE_TUTORIAL&&options.on(GameSettings.Option.PLAYER_STATS)&&tutorialPanelLeft()>screenLeft()?-122:0;
     }
 
     private float merchantX() {
@@ -1790,9 +1788,15 @@ public class Main extends ApplicationAdapter {
         if(currentStage>=1&&currentStage<=3){
             if(viewingMap||options.on(GameSettings.Option.MINIMAP))exploration.draw(spriteBatch,uiTheme,uiFont,currentStage,player,gimmicks,regionGuide,lamplighter,sideBoss,!viewingMap);
         }
+        if(viewingMap)PlayerStatsView.draw(spriteBatch,uiTheme,uiFont,player,PlayerStatsView.mapBounds(),false);
+        else if(options.on(GameSettings.Option.PLAYER_STATS)){
+            int hover=-1;
+            for(int i=0;i<6;i++)if(isMouseInside(PlayerStatsView.hudCell(i)))hover=i;
+            PlayerStatsView.draw(spriteBatch,uiTheme,uiFont,player,PlayerStatsView.hudBounds(),true,hover);
+        }
         if(options.on(GameSettings.Option.SHOW_FPS))uiTheme.text(spriteBatch,uiFont,Gdx.graphics.getFramesPerSecond()+" FPS",178,26,.6f,UiTheme.MUTED,90);
         if (currentStage == STAGE_TUTORIAL) journeyView.tutorial(spriteBatch, uiFont, tutorialPanelLeft(), tutorial,
-                isMouseInside(JourneyView.skipBounds(tutorialPanelLeft())), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
+                isMouseInside(JourneyView.skipBounds(tutorialPanelLeft(),tutorialPanelOffsetY())), Gdx.input.isButtonPressed(Input.Buttons.LEFT),tutorialPanelOffsetY());
     }
 
     private void drawReward() {
@@ -1890,8 +1894,8 @@ public class Main extends ApplicationAdapter {
         }
         if(!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT))return;
         for(int tab=0;tab<5;tab++)if(isMouseInside(SettingsView.tabBounds(tab))){settingsView.changeTab(tab);return;}
-        for(int row=0;row<rows.size();row++)if(isMouseInside(SettingsView.rowBounds(row))){
-            settingsView.selected=row;adjustSetting(rows.get(row),isMouseInside(SettingsView.arrowBounds(row,-1))?-1:1);return;
+        for(int row=0;row<rows.size();row++)if(isMouseInside(SettingsView.rowBounds(row,rows.size()))){
+            settingsView.selected=row;adjustSetting(rows.get(row),isMouseInside(SettingsView.arrowBounds(row,-1,rows.size()))?-1:1);return;
         }
         for(int i=0;i<4;i++)if(isMouseInside(SettingsView.footerBounds(i))){
             settingsView.selected=rows.size()+i;settingsFooter(i);
@@ -2087,7 +2091,8 @@ public class Main extends ApplicationAdapter {
 
     private void drawSettingsMenu(){
         int hovered=-1,tab=-1,footer=-1;
-        for(int i=0;i<options.entries(settingsView.tab).size();i++)if(isMouseInside(SettingsView.rowBounds(i)))hovered=i;
+        int count=options.entries(settingsView.tab).size();
+        for(int i=0;i<count;i++)if(isMouseInside(SettingsView.rowBounds(i,count)))hovered=i;
         for(int i=0;i<5;i++)if(isMouseInside(SettingsView.tabBounds(i)))tab=i;
         for(int i=0;i<4;i++)if(isMouseInside(SettingsView.footerBounds(i)))footer=i;
         settingsView.draw(spriteBatch,uiFont,uiTheme,options,hovered,tab,footer,Gdx.input.isButtonPressed(Input.Buttons.LEFT));
@@ -2179,6 +2184,8 @@ public class Main extends ApplicationAdapter {
 
         shapeRenderer.dispose();
         stageScenery.close();
+        if(groundArt!=null)groundArt.close();
+        gimmicks.close();
 
         spriteBatch.dispose();
 

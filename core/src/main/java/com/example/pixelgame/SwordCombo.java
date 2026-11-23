@@ -3,6 +3,7 @@ package com.example.pixelgame;
 /** Three committed swings, one buffered follow-up, and a frame-rate-independent finisher step. */
 final class SwordCombo {
     private static final float[] DURATION={.24f,.26f,.36f},START={.055f,.065f,.105f},END={.155f,.18f,.235f};
+    static float attacksPerSecond(){float total=0;for(float time:DURATION)total+=time;return DURATION.length/total;}
     private boolean active,queued;
     private int step;
     private float elapsed,lunge;

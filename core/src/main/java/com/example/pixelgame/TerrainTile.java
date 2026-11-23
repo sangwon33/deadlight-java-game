@@ -10,7 +10,6 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 final class TerrainTile {
     final TextureRegion region;
     final int surfaceRow;
-    private TextureRegion bedrock;
 
     TerrainTile(Texture texture, int surfaceRow) {
         region = new TextureRegion(texture);
@@ -48,19 +47,4 @@ final class TerrainTile {
         batch.draw(region, x, drawY(surfaceY, height), width, height);
     }
 
-    /** Extend the lowest floor's roots below the camera boundary without adding collision. */
-    void drawBelow(SpriteBatch batch,float x,float top,float width,float bottom){
-        if(bedrock==null){
-            int first=Math.min(region.getRegionHeight()-1,Math.max(surfaceRow+2,region.getRegionHeight()/3));
-            bedrock=new TextureRegion(region.getTexture(),region.getRegionX(),region.getRegionY()+first,
-                    region.getRegionWidth(),Math.max(1,region.getRegionHeight()-first-1));
-        }
-        float packed=batch.getPackedColor(),r=batch.getColor().r,g=batch.getColor().g,b=batch.getColor().b,a=batch.getColor().a;
-        for(float y=top;y>bottom;y-=64){
-            float h=Math.min(64,y-bottom),shade=Math.max(.48f,.85f-(top-y)/500);
-            batch.setColor(r*shade,g*shade,b*shade,a);
-            batch.draw(bedrock,x,y-h,width,h);
-        }
-        batch.setPackedColor(packed);
-    }
 }

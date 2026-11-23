@@ -78,7 +78,7 @@ final class MoonAtlas implements AutoCloseable {
         }finally{pixels.dispose();}
     }
 
-    private static int[] dominantInk(Pixmap pixels,int sx,int sy,int w,int h){
+    static int[] dominantInk(Pixmap pixels,int sx,int sy,int w,int h){
         boolean[] seen=new boolean[w*h];int[] queue=new int[w*h];
         int largest=0;int[] result=null;
         for(int start=0;start<seen.length;start++){

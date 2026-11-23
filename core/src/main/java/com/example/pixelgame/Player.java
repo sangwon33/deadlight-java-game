@@ -125,6 +125,8 @@ public class Player {
 
     private final MoonAtlas moonArt;
     private final MoonAtlas lookArt;
+    private HeroTransitions transitionArt;
+    private float landingTimer;
     private float moonTime;
     private float runStateTime;
     private float attackStateTime;
@@ -206,6 +208,8 @@ public class Player {
     }
 
     public void update(float deltaTime,ArrayList<Rectangle> platforms,float worldWidth) {
+        boolean groundedBefore=onGround;
+        landingTimer=Math.max(0,landingTimer-deltaTime);
         moonTime+=deltaTime;captureActionInput();
         jumpInput=pendingJump;attackInput=pendingAttack;dashInput=pendingDash;
         pendingJump=pendingAttack=pendingDash=false;skillInput=pendingSkill;pendingSkill=false;
@@ -252,10 +256,12 @@ public class Player {
         resolveHorizontal(previousX);
         x=MathUtils.clamp(x,0,worldWidth-width);
         if(!locked)walkDistance+=Math.abs(x-previousX);
+        float impactSpeed=velocityY;
         if(!freezeY)applyGravity(deltaTime);else onGround=false;
         support=null;
         resolveSolids(previousY);
         checkPlatformCollision(platforms,previousY);
+        if(!groundedBefore&&onGround&&impactSpeed < -150)landingTimer=.14f;
         if(y+bodyHeight()>worldTop){y=worldTop-bodyHeight();velocityY=Math.min(0,velocityY);}
         if(onGround&&jumpBufferTimer>0&&!locked&&!crouching)jump();
         if(!locked)updateRunAnimation(deltaTime);
@@ -640,12 +646,27 @@ public class Player {
     }
 
     private final Rectangle visualBounds=new Rectangle();
+    private int transitionFrame(){
+        if(hitStunTimer>0&&!crouching)return hitStunTimer>.09f?4:5;
+        if(usingSkill){
+            if(chargingSkill)return 7;
+            if(skillElapsed>=GameBalance.SKILL_RUSH_END)return skillElapsed<.30f?0:1;
+            return -1;
+        }
+        if(dashing||attacking||crouching||isLookingUp())return -1;
+        if(!onGround&&velocityY < -70)return 6;
+        if(onGround&&!moving&&landingTimer>0)return landingTimer>.07f?2:3;
+        return -1;
+    }
+    private HeroTransitions transitions(){if(transitionArt==null)transitionArt=new HeroTransitions();return transitionArt;}
     private int moonFrame(){
         return usingSkill ? (chargingSkill ? 14 : skillElapsed < .25f ? 15 : 11)
                 : dashing ? 13 : attacking ? 8 + Math.min(3,(int)(attackStateTime / attackDuration * 4))
                 : !onGround ? 12 : moving ? 4 + (int)(runStateTime / .09f) % 4 : (int)(moonTime / .28f) % 4;
     }
     Rectangle getVisualBounds(){
+        int supplemental=transitionFrame();
+        if(supplemental>=0)return transitions().bounds(supplemental,getCenterX(),y,facingRight,visualBounds);
         int frame;MoonAtlas atlas;
         if(isLookingUp()){atlas=lookArt;frame=1;}
         else if(isLookingDown()){atlas=lookArt;frame=2+(int)(moonTime/.6f)%2;}
@@ -660,7 +681,9 @@ public class Player {
         boolean gentle=GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS);
         float alpha=invincibleTimer>0&&hitFlashTimer<=0?(gentle?.72f:((int)(invincibleTimer*20)%2==0)?.3f:1):1;
         batch.setColor(1,hitFlashTimer>0?(gentle?.75f:.35f):1,hitFlashTimer>0?(gentle?.75f:.4f):1,alpha);
-        if(isLookingUp())lookArt.draw(batch,1,0,getCenterX(),y,GameBalance.character(78),facingRight);
+        int supplemental=transitionFrame();
+        if(supplemental>=0)transitions().draw(batch,supplemental,getCenterX(),y,facingRight);
+        else if(isLookingUp())lookArt.draw(batch,1,0,getCenterX(),y,GameBalance.character(78),facingRight);
         else if(isLookingDown())lookArt.draw(batch,2+(int)(moonTime/.6f)%2,0,getCenterX(),y,GameBalance.character(78),facingRight);
         else if(crouching)lookArt.draw(batch,2,0,getCenterX(),y,GameBalance.character(78),facingRight);
         else moonArt.draw(batch,frame,0,getCenterX(),y,GameBalance.character(78),facingRight);
@@ -742,6 +765,11 @@ public class Player {
         return GameBalance.BASE_ATTACK_DAMAGE + attackUpgradeLevel + (attackPotionTimer > 0f ? GameBalance.POWER_BONUS : 0);
     }
     public int getCurrentAttackDamage(){return isComboFinisher()?Math.round(getAttackDamage()*1.4f):getAttackDamage();}
+    public float getMoveSpeed(){return moveSpeed;}
+    public float getAttackSpeed(){return SwordCombo.attacksPerSecond();}
+    // Random critical hits are not active in the current combat rules.
+    public float getCriticalChance(){return 0f;}
+    public float getCriticalDamageMultiplier(){return 1f;}
 
     public float getAttackPotionTimer() {
         return attackPotionTimer;
@@ -807,6 +835,7 @@ public class Player {
     }
 
     public void dispose() {
+        if(transitionArt!=null)transitionArt.close();
         if(comboSprites!=null)comboSprites.close();
         moonArt.close();
         lookArt.close();

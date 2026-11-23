@@ -9,6 +9,7 @@ import com.badlogic.gdx.math.Rectangle;
 
 /** Run-local fog of war; render only visited cell fragments, never an entire undiscovered surface. */
 final class ExplorationMap {
+    static Rectangle fullBounds(){return new Rectangle(22,42,396,286);}
     static final int CELL=64;
     private static final class Grid {
         final int columns,rows;final float low;final BitSet seen=new BitSet();
@@ -54,20 +55,20 @@ final class ExplorationMap {
     }
     void draw(SpriteBatch b,UiTheme ui,BitmapFont f,int stage,Player p,WorldGimmicks mechanisms,RegionGuide guide,LamplighterEncounter lamp,SideBossEncounter side,boolean mini){
         if(stage<1||stage>3)return;
-        Rectangle panel=mini?new Rectangle(526,229,102,68):new Rectangle(28,42,584,286);
+        Rectangle panel=mini?(GameSettings.current.on(GameSettings.Option.PLAYER_STATS)?PlayerStatsView.minimapBounds():new Rectangle(526,229,102,68)):fullBounds();
         if(!mini)ui.rect(b,0,0,640,360,UiTheme.SURFACE,.97f);
         ui.rect(b,panel.x,panel.y,panel.width,panel.height,UiTheme.SURFACE,1);
         ui.panel(b,panel.x,panel.y,panel.width,panel.height);
         if(mini)ui.centered(b,f,"Tab 지도",new Rectangle(panel.x+4,panel.y+50,94,16),.61f,UiTheme.TEXT);
         else{
-            ui.diamond(b,51,300,6,UiTheme.GOLD,.9f);
-            ui.text(b,f,StageLayout.name(stage),66,313,1.05f,UiTheme.TEXT,390);
-            ui.text(b,f,"발걸음이 남긴 지도",66,289,.66f,UiTheme.MUTED,330);
-            ui.line(b,49,277,591,277,.7f,UiTheme.BORDER,.8f);
-            ui.text(b,f,"0"+stage+" / 03",514,307,.72f,UiTheme.GOLD,75);
-            for(float x:new float[]{38,602})for(float y:new float[]{52,318})ui.diamond(b,x,y,3,UiTheme.GOLD,.9f);
+            ui.diamond(b,panel.x+23,300,6,UiTheme.GOLD,.9f);
+            ui.text(b,f,StageLayout.name(stage),panel.x+38,313,1.05f,UiTheme.TEXT,panel.width-125);
+            ui.text(b,f,"발걸음이 남긴 지도",panel.x+38,289,.66f,UiTheme.MUTED,panel.width-65);
+            ui.line(b,panel.x+16,277,panel.x+panel.width-16,277,.7f,UiTheme.BORDER,.8f);
+            ui.text(b,f,"0"+stage+" / 03",panel.x+panel.width-72,307,.72f,UiTheme.GOLD,60);
+            for(float x:new float[]{panel.x+10,panel.x+panel.width-10})for(float y:new float[]{52,318})ui.diamond(b,x,y,3,UiTheme.GOLD,.9f);
         }
-        Rectangle plot=mini?new Rectangle(panel.x+6,panel.y+6,90,40):new Rectangle(50,108,540,160);
+        Rectangle plot=mini?new Rectangle(panel.x+6,panel.y+6,90,40):new Rectangle(panel.x+22,112,panel.width-44,156);
         Rectangle v=view(stage,p,mini);
         float scale=Math.min(plot.width/v.width,plot.height/v.height);
         float ox=plot.x+(plot.width-v.width*scale)/2,oy=plot.y+(plot.height-v.height*scale)/2;
@@ -75,7 +76,7 @@ final class ExplorationMap {
         if(!mini){
             for(float x=plot.x;x<=plot.x+plot.width;x+=30)ui.line(b,x,plot.y,x,plot.y+plot.height,.5f,UiTheme.BORDER,.25f);
             for(float y=plot.y;y<=plot.y+plot.height;y+=20)ui.line(b,plot.x,y,plot.x+plot.width,y,.5f,UiTheme.BORDER,.25f);
-            float cx=566,cy=242;
+            float cx=plot.x+plot.width-22,cy=242;
             for(int i=0;i<8;i++){float a=i*45*(float)Math.PI/180;ui.line(b,cx,cy,cx+(float)Math.cos(a)*14,cy+(float)Math.sin(a)*14,.55f,UiTheme.GOLD,.45f);}
             ui.diamond(b,cx,cy,5,UiTheme.GOLD,.5f);
             ui.triangle(b,cx-2,cy+8,cx,cy+19,cx+2,cy+8,UiTheme.GOLD,.7f);
@@ -110,7 +111,6 @@ final class ExplorationMap {
             surface(b,ui,stage,lift.bounds.x,lift.bounds.x+lift.bounds.width,lift.bounds.y+18,v,ox,oy,scale,2,UiTheme.SUCCESS);
         }
         for(WorldGimmicks.Wind wind:mechanisms.winds)marker(b,ui,stage,wind.x,wind.floor+8,v,ox,oy,scale,mini?1.7f:3.3f,UiTheme.SUCCESS);
-        for(WorldGimmicks.Gate gate:mechanisms.gates)marker(b,ui,stage,gate.bounds.x,gate.floor+12,v,ox,oy,scale,mini?2:4,gate.open?UiTheme.SUCCESS:Color.SALMON);
         for(WorldGimmicks.Jet jet:mechanisms.jets)marker(b,ui,stage,jet.x,jet.floor+8,v,ox,oy,scale,mini?1.7f:3.3f,Color.SALMON);
         for(WorldGimmicks.Well well:mechanisms.wells)marker(b,ui,stage,well.x,well.floor+8,v,ox,oy,scale,mini?1.8f:3.8f,well.used?UiTheme.MUTED:UiTheme.SUCCESS);
         if(guide!=null)for(StageLayout.Supply supply:StageLayout.supplies(stage))if(!guide.claimed(supply.id()))marker(b,ui,stage,supply.x(),supply.floor()+8,v,ox,oy,scale,mini?1.4f:3,UiTheme.GOLD);
@@ -127,11 +127,14 @@ final class ExplorationMap {
         ui.diamond(b,px,py,mini?2.5f:4,UiTheme.TEXT,1);
         if(!mini){
             float d=p.isFacingRight()?1:-1;ui.triangle(b,px+d*8,py-2,px+d*12,py,px+d*8,py+2,UiTheme.TEXT,1);
-            String[] names={"현재 위치","보급품","기믹 · 우물","위험 · 봉인"};
+            String[] names={"현재 위치","보급품","기믹 · 우물","위험 · 시련"};
             Color[] colors={UiTheme.TEXT,UiTheme.GOLD,UiTheme.SUCCESS,Color.SALMON};
-            for(int i=0;i<4;i++){float x=59+i*135;ui.diamond(b,x,86,2.8f,colors[i],1);ui.text(b,f,names[i],x+10,93,.63f,UiTheme.MUTED,119);}
-            ui.line(b,49,68,591,68,.6f,UiTheme.BORDER,.8f);
-            ui.centered(b,f,"미탐색 구역은 숨겨집니다 · Tab을 놓으면 계속",new Rectangle(28,18,584,21),.66f,UiTheme.MUTED);
+            for(int i=0;i<4;i++){
+                float x=panel.x+26+(i%2)*178,y=91-(i/2)*18;
+                ui.diamond(b,x,y,2.8f,colors[i],1);ui.text(b,f,names[i],x+10,y+7,.63f,UiTheme.MUTED,145);
+            }
+            ui.line(b,panel.x+16,60,panel.x+panel.width-16,60,.6f,UiTheme.BORDER,.8f);
+            ui.centered(b,f,"미탐색 구역은 숨겨집니다 · Tab을 놓으면 계속",new Rectangle(22,15,596,21),.66f,UiTheme.MUTED);
         }
     }
     private boolean inside(Rectangle v,float x,float y){return x>=v.x&&x<=v.x+v.width&&y>=v.y&&y<=v.y+v.height;}

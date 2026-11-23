@@ -38,7 +38,8 @@ final class ReadabilityBatch extends SpriteBatch {
             return texture2D(u_texture, uv).a;
         }
         void main() {
-            vec4 pixel = texture2D(u_texture, v_texCoords) * v_color;
+            vec4 source = texture2D(u_texture, v_texCoords);
+            vec4 pixel = source * v_color;
             if (u_mode == 4) {
                 float gray = dot(pixel.rgb, vec3(0.299, 0.587, 0.114));
                 pixel.rgb = mix(vec3(gray), pixel.rgb, 0.22) * vec3(0.85, 0.79, 0.73);
@@ -50,7 +51,9 @@ final class ReadabilityBatch extends SpriteBatch {
                 pixel.rgb = mix(pixel.rgb, vec3(gray), 0.22);
                 // Cool atmospheric lift reduces background detail contrast.
                 pixel.rgb = mix(pixel.rgb, vec3(0.16, 0.18, 0.22), 0.32);
-            } else if (u_mode == 1) {
+            }
+            if (u_mode == 1) {
+                if(source.a<0.04)pixel=vec4(0.0);
                 float nearAlpha = 0.0;
                 nearAlpha = max(nearAlpha, coverage(v_texCoords + vec2(u_step.x, 0.0)));
                 nearAlpha = max(nearAlpha, coverage(v_texCoords - vec2(u_step.x, 0.0)));
@@ -97,6 +100,12 @@ final class ReadabilityBatch extends SpriteBatch {
     void atmosphere() { setMode(2); }
     void mutedBackground() { setMode(3); }
     void weatheredTerrain() { setMode(4); }
+    void bossArt(){
+        setMode(1);
+        treatment.setUniformf("u_edge",.035f,.045f,.065f,.95f);
+        if(GameSettings.current.on(GameSettings.Option.HIGH_CONTRAST))
+            treatment.setUniformf("u_edge",.72f,.83f,.92f,.9f);
+    }
 
     void silhouette(boolean player) {
         setMode(1);
