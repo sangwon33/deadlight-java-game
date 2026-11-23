@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.utils.Align;
 
 final class JourneyView {
     private final UiTheme ui;
@@ -15,7 +16,8 @@ final class JourneyView {
         long tenths = Math.max(0, Math.round(seconds * 10));
         return String.format(Locale.ROOT, "%02d:%02d.%d", tenths / 600, (tenths / 10) % 60, tenths % 10);
     }
-    static Rectangle skipBounds(float left) { return new Rectangle(left + 236, 264, 56, 20); }
+    static Rectangle skipBounds(float left) { return new Rectangle(left + 228, 266, 64, 20); }
+    static Rectangle tutorialBounds(float left) { return new Rectangle(left+12,146,292,144); }
 
     void progress(SpriteBatch b, BitmapFont f, float left, int stage, int defeated, int total,
                   float position, float worldWidth, FallenGod boss, RunStats stats, int guardians) {
@@ -27,13 +29,30 @@ final class JourneyView {
 
     void tutorial(SpriteBatch b,BitmapFont f,float left,TutorialGuide guide,boolean hovered,boolean pressed){
         if(!guide.visible())return;
-        ui.panel(b,left+12,178,292,112);
-        ui.text(b,f,guide.title(),left+22,277,.76f,UiTheme.GOLD,guide.finished()?270:198);
-        ui.paragraph(b,f,guide.instruction(),new Rectangle(left+22,222,270,43),.77f,UiTheme.TEXT);
-        ui.paragraph(b,f,guide.detail(),new Rectangle(left+22,192,270,26),.68f,UiTheme.MUTED);
+        Rectangle panel=tutorialBounds(left);
+        ui.panel(b,panel.x,panel.y,panel.width,panel.height);
+        // Keep the header/button, wrapped instruction, detail and progress in separate rows.
+        ui.label(b,f,guide.title(),new Rectangle(left+16,266,guide.finished()?282:202,20),
+                .76f,UiTheme.GOLD,Align.left);
+        ui.paragraph(b,f,guide.instruction(),new Rectangle(left+22,204,270,50),.77f,UiTheme.TEXT);
+        ui.paragraph(b,f,guide.detail(),new Rectangle(left+22,162,270,36),.68f,UiTheme.MUTED);
         float width=(270-(TutorialGuide.LESSON_COUNT-1)*5f)/TutorialGuide.LESSON_COUNT;
-        for(int i=0;i<TutorialGuide.LESSON_COUNT;i++)ui.rect(b,left+22+i*(width+5),183,width,2,i<guide.step()?UiTheme.SUCCESS:UiTheme.BORDER,1);
+        for(int i=0;i<TutorialGuide.LESSON_COUNT;i++)ui.rect(b,left+22+i*(width+5),151,width,2,i<guide.step()?UiTheme.SUCCESS:UiTheme.BORDER,1);
         if(!guide.finished())ui.button(b,f,skipBounds(left),"건너뛰기",true,hovered,pressed,.65f);
+    }
+
+    void tutorialWorld(SpriteBatch b,BitmapFont f,TutorialGuide guide){
+        if(!guide.practicingLook())return;
+        float x=StageLayout.TUTORIAL_LOOK_X,top=StageLayout.TUTORIAL_LOOK_TOP;
+        ui.line(b,x+6,top,x+StageLayout.TUTORIAL_LOOK_WIDTH-6,top,1.2f,UiTheme.GOLD,.9f);
+        if(!guide.onLookPlatform()){
+            ui.diamond(b,x+StageLayout.TUTORIAL_LOOK_WIDTH/2,top+17,5,UiTheme.GOLD,.9f);
+            ui.centered(b,f,"전망 발판",new Rectangle(x+30,top+72,140,18),.61f,UiTheme.TEXT);
+        }
+        float landingX=x+80,landingY=StageLayout.TUTORIAL_LANDING_TOP;
+        ui.verticalFade(b,landingX-28,landingY,56,11,UiTheme.GOLD,.24f,0);
+        ui.line(b,landingX-24,landingY,landingX+24,landingY,1.3f,UiTheme.GOLD,1);
+        ui.diamond(b,landingX,landingY+5,4,UiTheme.GOLD,.9f);
     }
 
     void exit(SpriteBatch b, BitmapFont f, float x, float ground, int guardians) {

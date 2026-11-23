@@ -12,8 +12,11 @@ import com.badlogic.gdx.math.Rectangle;
 final class MoonAtlas implements AutoCloseable {
     private static final HashMap<String,MoonAtlas> CACHE = new HashMap<>();
     private final String asset;
+    private final String cacheKey;
     private final Texture texture;
     private final TextureRegion[] regions;
+    private final TextureRegion[] renderRegions;
+    private final TextureRegion[] sampleRegions;
     private final int[][] ink;
     private int owners;
     static MoonAtlas acquire(String asset,int columns,int rows) {
@@ -24,10 +27,24 @@ final class MoonAtlas implements AutoCloseable {
         if(atlas==null){atlas=new MoonAtlas(asset,columns,rows,rowSplit);CACHE.put(asset,atlas);}
         atlas.owners++;return atlas;
     }
+    /** Isolate one contaminated actor frame without rewriting or scaling its source artwork. */
+    static MoonAtlas acquireIsolated(String asset,int columns,int rows,int frame) {
+        if(frame<0||frame>=columns*rows)throw new IllegalArgumentException("Invalid actor frame: "+frame);
+        String key=asset+"#isolated:"+frame;
+        MoonAtlas atlas=CACHE.get(key);
+        if(atlas==null){atlas=new MoonAtlas(asset,columns,rows,.5f,frame,key);CACHE.put(key,atlas);}
+        atlas.owners++;return atlas;
+    }
     private MoonAtlas(String asset,int columns,int rows,float rowSplit){
-        this.asset=asset;texture=new Texture(Gdx.files.internal(asset));
+        this(asset,columns,rows,rowSplit,-1,asset);
+    }
+    private MoonAtlas(String asset,int columns,int rows,float rowSplit,int isolatedFrame,String cacheKey){
+        this.asset=asset;this.cacheKey=cacheKey;
+        texture=new Texture(Gdx.files.internal(asset));
         texture.setFilter(Texture.TextureFilter.Linear,Texture.TextureFilter.Linear);
         regions=new TextureRegion[columns*rows];ink=new int[regions.length][4];
+        renderRegions=new TextureRegion[regions.length];
+        sampleRegions=new TextureRegion[regions.length];
         Pixmap pixels=new Pixmap(Gdx.files.internal(asset));
         try {
             for(int i=0;i<regions.length;i++){
@@ -43,8 +60,44 @@ final class MoonAtlas implements AutoCloseable {
                 }
                 if(right<left)throw new IllegalArgumentException("Empty art cell "+asset+" #"+i);
                 ink[i]=new int[]{left,top,right+1,bottom+1};
+                if(i==isolatedFrame){
+                    int[] body=dominantInk(pixels,x,y,w,h);ink[i]=body;
+                    // The 0.8-scale actor needs six source pixels for its screen-space outline.
+                    int clipX=Math.max(0,body[0]-6),clipY=Math.max(0,body[1]-6);
+                    int clipRight=Math.min(w,body[2]+6),clipBottom=Math.min(h,body[3]+6);
+                    renderRegions[i]=new TextureRegion(texture,x+clipX,y+clipY,clipRight-clipX,clipBottom-clipY);
+                }else renderRegions[i]=regions[i];
+                sampleRegions[i]=renderRegions[i];
+                if(isolatedFrame>=0){
+                    TextureRegion r=renderRegions[i];
+                    // Keep geometry separate from UVs; inset UVs must not shrink the actor.
+                    sampleRegions[i]=new TextureRegion(texture,r.getU()+.5f/texture.getWidth(),
+                            r.getV()+.5f/texture.getHeight(),r.getU2()-.5f/texture.getWidth(),r.getV2()-.5f/texture.getHeight());
+                }
             }
         }finally{pixels.dispose();}
+    }
+
+    private static int[] dominantInk(Pixmap pixels,int sx,int sy,int w,int h){
+        boolean[] seen=new boolean[w*h];int[] queue=new int[w*h];
+        int largest=0;int[] result=null;
+        for(int start=0;start<seen.length;start++){
+            if(seen[start]||(pixels.getPixel(sx+start%w,sy+start/w)&255)<16)continue;
+            int head=0,tail=1,left=w,top=h,right=-1,bottom=-1;queue[0]=start;seen[start]=true;
+            while(head<tail){
+                int p=queue[head++],x=p%w,y=p/w;
+                left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,x);bottom=Math.max(bottom,y);
+                for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){
+                    int nx=x+dx,ny=y+dy;
+                    if(nx<0||ny<0||nx>=w||ny>=h)continue;
+                    int next=ny*w+nx;
+                    if(!seen[next]&&(pixels.getPixel(sx+nx,sy+ny)&255)>=16){seen[next]=true;queue[tail++]=next;}
+                }
+            }
+            if(tail>largest){largest=tail;result=new int[]{left,top,right+1,bottom+1};}
+        }
+        if(result==null)throw new IllegalArgumentException("Actor frame has no visible body");
+        return result;
     }
     float sourceHeight(int index){return ink[index][3]-ink[index][1];}
     Rectangle inkBounds(int index,int reference,float center,float feet,float height,boolean right,Rectangle out){
@@ -54,19 +107,23 @@ final class MoonAtlas implements AutoCloseable {
         return out.set(center+left*scale,feet,(bounds[2]-bounds[0])*scale,sourceHeight(index)*scale);
     }
     void drawRotated(SpriteBatch batch,int index,float cx,float cy,float ax,float ay,float scale,float angle){
-        TextureRegion r=regions[index];float w=r.getRegionWidth()*scale,h=r.getRegionHeight()*scale;
-        float ox=ax*scale,oy=(r.getRegionHeight()-ay)*scale;
-        batch.draw(r,cx-ox,cy-oy,ox,oy,w,h,1,1,angle);
+        TextureRegion r=renderRegions[index],original=regions[index];float w=r.getRegionWidth()*scale,h=r.getRegionHeight()*scale;
+        float ox=(ax-r.getRegionX()+original.getRegionX())*scale;
+        float oy=(r.getRegionHeight()+r.getRegionY()-original.getRegionY()-ay)*scale;
+        batch.draw(sampleRegions[index],cx-ox,cy-oy,ox,oy,w,h,1,1,angle);
     }
     void drawPivoted(SpriteBatch batch,int index,float cx,float cy,float ax,float ay,float scale,boolean right){
-        TextureRegion r=regions[index];float w=r.getRegionWidth()*scale,h=r.getRegionHeight()*scale;
-        batch.draw(r,right?cx-ax*scale:cx+ax*scale,cy-(r.getRegionHeight()-ay)*scale,right?w:-w,h);
+        TextureRegion r=renderRegions[index],original=regions[index];float w=r.getRegionWidth()*scale,h=r.getRegionHeight()*scale;
+        float pivotX=(ax-r.getRegionX()+original.getRegionX())*scale;
+        float pivotY=(r.getRegionHeight()+r.getRegionY()-original.getRegionY()-ay)*scale;
+        batch.draw(sampleRegions[index],right?cx-pivotX:cx+pivotX,cy-pivotY,right?w:-w,h);
     }
     void draw(SpriteBatch batch,int index,int reference,float center,float feet,float height,boolean right){
-        TextureRegion r=regions[index];float scale=height/sourceHeight(reference);
+        TextureRegion r=renderRegions[index],original=regions[index];float scale=height/sourceHeight(reference);
         float w=r.getRegionWidth()*scale,h=r.getRegionHeight()*scale;
-        float x=center-w/2,y=feet-(r.getRegionHeight()-ink[index][3])*scale;
-        batch.draw(r,right?x:x+w,y,right?w:-w,h);
+        float x=center+(r.getRegionX()-original.getRegionX()-original.getRegionWidth()/2f)*scale;
+        float y=feet+(ink[index][3]-(r.getRegionY()-original.getRegionY())-r.getRegionHeight())*scale;
+        batch.draw(sampleRegions[index],right?x:2*center-x,y,right?w:-w,h);
     }
     Texture croppedTexture(int index){
         TextureRegion r=regions[index];int[] b=ink[index];
@@ -91,6 +148,6 @@ final class MoonAtlas implements AutoCloseable {
         }finally{p.dispose();}
     }
     @Override public void close(){
-        if(--owners==0){texture.dispose();CACHE.remove(asset);}
+        if(--owners==0){texture.dispose();CACHE.remove(cacheKey);}
     }
 }

@@ -6,6 +6,8 @@ import com.badlogic.gdx.math.Rectangle;
 /** Shared horizontal/vertical routes, solid floors, one-way bridges and encounter anchors. */
 final class StageLayout {
     static final float GROUND=60f;
+    static final float TUTORIAL_LOOK_X=760f,TUTORIAL_LOOK_TOP=270f,TUTORIAL_LOOK_WIDTH=200f;
+    static final float TUTORIAL_LANDING_TOP=140f;
     record Spawn(float x,float floor,Enemy.EnemyType type,boolean guardian,float left,float right){
         Enemy create(){Enemy e=new Enemy(x,floor,type);if(right>left)e.setTerritory(left,right);if(guardian)e.markGuardian();return e;}
     }
@@ -24,6 +26,11 @@ final class StageLayout {
         return surfaces;
     }
     private static void slab(List<Rectangle> out,float x,float top,float width){out.add(new Rectangle(x,top-18,width,18));}
+    static boolean tutorialLookPlatform(Rectangle support){
+        return support!=null&&Math.abs(support.x-TUTORIAL_LOOK_X)<.1f
+                &&Math.abs(support.y+support.height-TUTORIAL_LOOK_TOP)<.1f
+                &&Math.abs(support.width-TUTORIAL_LOOK_WIDTH)<.1f;
+    }
     static List<Rectangle> floors(int stage){
         var out=new ArrayList<Rectangle>();
         if(stage==0||stage==4){out.add(new Rectangle(0,GROUND-96,sourceWidth(stage),96));return out;}
@@ -40,7 +47,12 @@ final class StageLayout {
     }
     static List<Rectangle> platforms(int stage){
         var p=new ArrayList<Rectangle>();
-        if(stage==0){slab(p,600,160,170);slab(p,810,250,150);return p;}
+        if(stage==0){
+            slab(p,600,160,150);
+            slab(p,TUTORIAL_LOOK_X,TUTORIAL_LANDING_TOP,TUTORIAL_LOOK_WIDTH);
+            slab(p,TUTORIAL_LOOK_X,TUTORIAL_LOOK_TOP,TUTORIAL_LOOK_WIDTH);
+            return p;
+        }
         if(stage==4){slab(p,350,150,170);slab(p,780,150,170);return p;}
         slab(p,900,60,260);slab(p,1500,60,280);
         float shift=(stage-1)*25;

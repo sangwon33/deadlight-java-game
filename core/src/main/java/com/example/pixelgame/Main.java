@@ -622,7 +622,7 @@ public class Main extends ApplicationAdapter {
         }
         if (currentStage == STAGE_TUTORIAL && tutorial.visible() && !tutorial.finished()
                 && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
-                && isMouseInside(JourneyView.skipBounds(screenLeft()))) {
+                && isMouseInside(JourneyView.skipBounds(tutorialPanelLeft()))) {
             tutorial.skip(); beginStageTransition(STAGE_ONE, "모험을 시작합니다."); return;
         }
         merchantAnimationTime += deltaTime;
@@ -1025,14 +1025,20 @@ public class Main extends ApplicationAdapter {
         boolean canLook = gameMode == GameMode.PLAYING && player.isAlive()
                 && !viewingMap && !shopOpen && !inventoryOpen && !rewardOpen && !stageTransition.active();
         float lookOffset = cameraLook.update(dt, player.isLookingUp(), player.isLookingDown(), canLook, player.isLookingDown());
-        float targetY=player.getY()+100+MathUtils.clamp(player.getVelocityY()*.06f,-30,40)+lookOffset;
-        targetY=MathUtils.clamp(targetY,StageLayout.bottom(currentStage)+VIEW_HEIGHT/2,StageLayout.top(currentStage)-VIEW_HEIGHT/2);
+        float normalMinY=StageLayout.bottom(currentStage)+VIEW_HEIGHT/2,maxY=StageLayout.top(currentStage)-VIEW_HEIGHT/2;
+        float minY=normalMinY+Math.min(0,lookOffset);
+        // Let the camera finish easing back instead of snapping up with the returning boundary.
+        if(camera.position.y<normalMinY)minY=Math.min(minY,camera.position.y);
+        float neutralY=player.getY()+100+MathUtils.clamp(player.getVelocityY()*.06f,-30,40);
+        float targetY=MathUtils.clamp(neutralY,normalMinY,maxY)+lookOffset;
+        targetY=MathUtils.clamp(targetY,minY,maxY);
         camera.position.y=MathUtils.lerp(camera.position.y,targetY,blend);
-        if(player.isGrounded())camera.position.y=Math.min(camera.position.y,player.getY()+106+Math.max(0,lookOffset));
+        if(player.isGrounded())camera.position.y=Math.min(camera.position.y,Math.max(player.getY()+106,normalMinY)+Math.max(0,lookOffset));
         // Keep the entire looking pose in view, including during smooth return/falling.
         camera.position.y=MathUtils.clamp(camera.position.y,player.getY()-48,player.getY()+172);
         camera.position.x=MathUtils.clamp(camera.position.x,VIEW_WIDTH/2,getCurrentWorldWidth()-VIEW_WIDTH/2);
-        camera.position.y=MathUtils.clamp(camera.position.y,StageLayout.bottom(currentStage)+VIEW_HEIGHT/2,StageLayout.top(currentStage)-VIEW_HEIGHT/2);
+        camera.position.y=MathUtils.clamp(camera.position.y,minY,maxY);
+        if(lookOffset==0&&Math.abs(camera.position.y-normalMinY)<.01f)camera.position.y=normalMinY;
         // Alpha bounds include the tilted hood, prone legs and sword, not just the body collider.
         // A few pixels of edge overscan are preferable to cutting off the actual artwork.
         Rectangle visible=player.getVisualBounds();
@@ -1325,6 +1331,7 @@ public class Main extends ApplicationAdapter {
         spriteBatch.begin();
 
         gimmicks.drawLabels(spriteBatch, uiTheme, uiFont, player);
+        if(currentStage==STAGE_TUTORIAL)journeyView.tutorialWorld(spriteBatch,uiFont,tutorial);
         enemyAttackView.labels(spriteBatch, uiFont, uiTheme, enemies, fallenGod);
         feedback.drawText(spriteBatch, uiFont, uiTheme);
         spriteBatch.end();
@@ -1374,12 +1381,18 @@ public class Main extends ApplicationAdapter {
     private void drawGroundTiles() {
         TerrainTile tile=terrainTiles.get(groundTileTexture);
         float left=camera.position.x-VIEW_WIDTH/2-64,right=left+VIEW_WIDTH+128;
-        for(Rectangle floor:StageLayout.floors(currentStage)){
+        var floors=StageLayout.floors(currentStage);
+        float lowest=Float.MAX_VALUE;
+        for(Rectangle floor:floors)lowest=Math.min(lowest,floor.y+floor.height);
+        for(Rectangle floor:floors){
             float top=floor.y+floor.height;
             if(top<camera.position.y-VIEW_HEIGHT/2-96||floor.y>camera.position.y+VIEW_HEIGHT/2)continue;
             for(float x=floor.x;x<floor.x+floor.width;x+=GROUND_TILE_SIZE){
                 if(x+GROUND_TILE_SIZE<left||x>right)continue;
-                tile.draw(spriteBatch,x,top,Math.min(GROUND_TILE_SIZE,floor.x+floor.width-x),Math.min(96,floor.height));
+                float width=Math.min(GROUND_TILE_SIZE,floor.x+floor.width-x),height=Math.min(96,floor.height);
+                if(Math.abs(top-lowest)<.01f)tile.drawBelow(spriteBatch,x,tile.drawY(top,height)+.5f,width,
+                        StageLayout.bottom(currentStage)-CameraLook.DOWN_DISTANCE-64);
+                tile.draw(spriteBatch,x,top,width,height);
             }
         }
     }
@@ -1485,6 +1498,16 @@ public class Main extends ApplicationAdapter {
 
         return 0f;
 
+    }
+
+    private float tutorialPanelLeft(){
+        if(currentStage!=STAGE_TUTORIAL||camera.position.y>=StageLayout.bottom(currentStage)+VIEW_HEIGHT/2-.5f)return screenLeft();
+        Rectangle ink=player.getVisualBounds();
+        float x=ink.x-camera.position.x+VIEW_WIDTH/2,y=ink.y-camera.position.y+VIEW_HEIGHT/2;
+        Rectangle panel=JourneyView.tutorialBounds(screenLeft());
+        if(x<panel.x+panel.width&&x+ink.width>panel.x&&y<panel.y+panel.height&&y+ink.height>panel.y)
+            return screenLeft()+VIEW_WIDTH-panel.width-24;
+        return screenLeft();
     }
 
     private float merchantX() {
@@ -1746,8 +1769,10 @@ public class Main extends ApplicationAdapter {
 
     private void drawHud() {
         feedback.drawScreenPulse(spriteBatch, uiTheme, screenLeft());
+        int actionHover=-1;
+        if(!showScreenControls)for(int i=0;i<3;i++)if(isMouseInside(GameHud.actionBounds(screenLeft(),i)))actionHover=i;
         gameHud.pointer(isMouseInside(GameHud.pauseBounds(screenLeft())),
-                isMouseInside(GameHud.inventoryBounds(screenLeft())),Gdx.input.isButtonPressed(Input.Buttons.LEFT));
+                isMouseInside(GameHud.inventoryBounds(screenLeft())),Gdx.input.isButtonPressed(Input.Buttons.LEFT),actionHover);
         gameHud.draw(spriteBatch, uiFont, screenLeft(), player, feedback.trailRatio(),
                 healPotions, attackPotions, gold, healPotionIcon, attackPotionIcon, goldIcon);
         gameHud.drawBoss(spriteBatch, uiFont, screenLeft(), fallenGod);
@@ -1765,9 +1790,9 @@ public class Main extends ApplicationAdapter {
         if(currentStage>=1&&currentStage<=3){
             if(viewingMap||options.on(GameSettings.Option.MINIMAP))exploration.draw(spriteBatch,uiTheme,uiFont,currentStage,player,gimmicks,regionGuide,lamplighter,sideBoss,!viewingMap);
         }
-        if(options.on(GameSettings.Option.SHOW_FPS))uiTheme.text(spriteBatch,uiFont,Gdx.graphics.getFramesPerSecond()+" FPS",showScreenControls?175:120,26,.6f,UiTheme.MUTED,90);
-        if (currentStage == STAGE_TUTORIAL) journeyView.tutorial(spriteBatch, uiFont, screenLeft(), tutorial,
-                isMouseInside(JourneyView.skipBounds(screenLeft())), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
+        if(options.on(GameSettings.Option.SHOW_FPS))uiTheme.text(spriteBatch,uiFont,Gdx.graphics.getFramesPerSecond()+" FPS",178,26,.6f,UiTheme.MUTED,90);
+        if (currentStage == STAGE_TUTORIAL) journeyView.tutorial(spriteBatch, uiFont, tutorialPanelLeft(), tutorial,
+                isMouseInside(JourneyView.skipBounds(tutorialPanelLeft())), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
     }
 
     private void drawReward() {

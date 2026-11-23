@@ -13,23 +13,15 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
-/** Fixed screen-space controls with circular targets and pixel icons. */
+/** Fixed screen-space controls with circular targets and shared action silhouettes. */
 public class GameControls {
     private final OrthographicCamera camera = new OrthographicCamera();
     private final FitViewport viewport = new FitViewport(640, 360, camera);
     // Every target stays below ground level (60), including the attack button.
-    private final float[] x = {38, 96, 434, 548, 606, 490};
-    private final float[] y = {33, 33, 33, 33, 33, 33};
+    private final float[] x = {38, 96, 380, 494, 552, 436};
+    private final float[] y = {31, 31, 31, 31, 31, 31};
     private final float[] radius = {21, 21, 20, 22, 20, 20};
     private final String[] keys = {"A", "D", "SPACE", "J", "SHIFT", "Q"};
-    private final String[][] icons = {
-        {"...#...", "..##...", ".###...", "#####..", ".###...", "..##...", "...#..."},
-        {"...#...", "...##..", "...###.", "..#####", "...###.", "...##..", "...#..."},
-        {"...#...", "..###..", ".#####.", "...#...", "...#...", ".......", ".#####."},
-        {"......##", ".....###", "....###.", "#..###..", ".####...", "..##....", ".#.##...", "#......."},
-        {"..#..#..", "...#..#.", "##..#..#", "...#..#.", "..#..#.."},
-        {".....#.", "....###", "...###.", "..###..", ".###...", "###....", ".#....."}
-    };
     private final boolean[] held = new boolean[6], hover = new boolean[6];
     private final float[] press = new float[6];
     private final Vector2 cursor = new Vector2();
@@ -89,24 +81,6 @@ public class GameControls {
         }
     }
 
-    private void icon(ShapeRenderer s,int index,float scale) {
-        float cx=x[index],cy=y[index],w=1.15f*scale;
-        if(index<2){
-            float d=index==0?-1:1;
-            s.rectLine(cx+d*5,cy,cx-d*2,cy+5,w);s.rectLine(cx+d*5,cy,cx-d*2,cy-5,w);
-        }else if(index==2){
-            s.rectLine(cx,cy-5,cx,cy+5,w);s.rectLine(cx,cy+5,cx-4,cy+1,w);s.rectLine(cx,cy+5,cx+4,cy+1,w);
-            s.rectLine(cx-5,cy-7,cx+5,cy-7,w*.7f);
-        }else if(index==3){
-            s.rectLine(cx-4,cy-5,cx+6,cy+6,w);s.rectLine(cx-4,cy,cx,cy-4,w);s.rectLine(cx-6,cy-7,cx-4,cy-5,w*1.7f);
-        }else if(index==4){
-            for(int i=0;i<2;i++){float dx=i*6-3;s.rectLine(cx+dx-2,cy-5,cx+dx+3,cy,w);s.rectLine(cx+dx+3,cy,cx+dx-2,cy+5,w);}
-        }else{
-            s.rectLine(cx-7,cy,cx+7,cy,w);s.rectLine(cx+7,cy,cx+3,cy+3,w);s.rectLine(cx+7,cy,cx+3,cy-3,w);
-            s.rectLine(cx-3,cy-4,cx-3,cy+4,w);
-        }
-    }
-
     public void draw(Player player, SpriteBatch batch, ShapeRenderer s, BitmapFont font, UiTheme ui) {
         KeyBindings.Action[] actions = {KeyBindings.Action.LEFT, KeyBindings.Action.RIGHT, KeyBindings.Action.JUMP,
                 KeyBindings.Action.ATTACK, KeyBindings.Action.DASH, KeyBindings.Action.SKILL};
@@ -125,15 +99,15 @@ public class GameControls {
             press[i] = MathUtils.lerp(press[i], held[i] && !disabled ? 1f : 0f, Math.min(1f, dt * 22));
             float scale = 1 - press[i] * 0.08f;
             float r = radius[i] * scale * .82f;
-            s.setColor(0.01f, 0.02f, 0.04f, 0.24f);
+            s.setColor(0.01f, 0.02f, 0.04f, 0.65f);
             s.circle(x[i], y[i] - 1, r + 1, 64);
             s.setColor(0.07f + press[i] * 0.1f, 0.10f + press[i] * 0.17f,
-                    0.14f + press[i] * 0.2f, disabled ? 0.28f : 0.18f);
+                    0.14f + press[i] * 0.2f, disabled ? 0.58f : 0.7f);
             s.circle(x[i], y[i], r, 64);
-            if (disabled) s.setColor(0.49f, 0.56f, 0.63f, 0.35f);
+            if (disabled) s.setColor(0.49f, 0.56f, 0.63f, 0.65f);
             else if (hover[i]) s.setColor(0.72f, 0.88f, 1f, 0.95f);
-            else s.setColor(0.54f, 0.68f, 0.79f, 0.55f);
-            ring(s, x[i], y[i], r - 1, .65f, 1);
+            else s.setColor(0.68f, 0.84f, 0.93f, 0.9f);
+            ring(s, x[i], y[i], r - 1, .9f, 1);
             if(i==5&&player.canUseSkill()){
                 float flash=player.getSkillReadyFlash()*(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.2f:1);
                 s.setColor(.68f,.88f,1,.45f+flash*.5f);ring(s,x[i],y[i],r+3+flash*5,.8f+flash,1);
@@ -141,14 +115,10 @@ public class GameControls {
             if (i == 5 && player.isChargingSkill()) {
                 Color charge = UiTheme.skillChargeColor(player.getSkillChargeStage());
                 s.setColor(charge.r, charge.g, charge.b, 1);
-                icon(s, i, scale);
                 ring(s, x[i], y[i], r - 1, 1.4f, player.getSkillChargeProgress());
             } else if (cooldown > 0) {
                 s.setColor(0.68f, 0.84f, 0.93f, 1);
                 ring(s, x[i], y[i], r - 1, 2.4f, MathUtils.clamp(1 - cooldown / (i == 5 ? GameBalance.SKILL_COOLDOWN : GameBalance.DASH_COOLDOWN), 0, 1));
-            } else {
-                s.setColor(i == 5 ? .68f : .91f, i == 5 ? .88f : .96f, 1, disabled ? .3f : 1);
-                icon(s, i, scale);
             }
         }
         s.end();
@@ -159,14 +129,20 @@ public class GameControls {
         float cb = font.getColor().b, ca = font.getColor().a;
         batch.begin();
         for (int i = 0; i < keys.length; i++) {
-            ui.centered(batch, font, keys[i], new Rectangle(x[i] - 31, 0, 62, 14),
-                    .64f, UiTheme.MUTED);
+            boolean charging=i==5&&player.isChargingSkill();
+            Color color=charging?UiTheme.skillChargeColor(player.getSkillChargeStage()):i==5?UiTheme.GOLD:UiTheme.TEXT;
+            ActionIcons.draw(batch,ui,actions[i],x[i],y[i],.95f*(1-press[i]*.08f),color,disabled(i,player)&&!charging?.62f:1);
+            if(hover[i]){
+                String label=actions[i].label+" · "+keys[i];
+                float width=130,left=MathUtils.clamp(x[i]-width/2,8,632-width);
+                ui.centered(batch,font,label,new Rectangle(left,59,width,18),.55f,UiTheme.TEXT);
+            }
         }
         for (int i : new int[]{4, 5}) if (cooldown(i, player) > 0) {
             String label = cooldown(i, player) < 1 ? String.format(java.util.Locale.ROOT, "%.1f", cooldown(i, player))
                     : Integer.toString((int)Math.ceil(cooldown(i, player)));
-            ui.centered(batch, font, label, new Rectangle(x[i] - 18, y[i] - 18, 36, 36),
-                    .9f, Color.WHITE);
+            ui.centered(batch, font, label, new Rectangle(x[i] - 18, 0, 36, 14),
+                    .62f, Color.WHITE);
         }
         batch.end();
         font.getData().setScale(sx, sy);

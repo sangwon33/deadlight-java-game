@@ -54,11 +54,11 @@ final class ExplorationMap {
     }
     void draw(SpriteBatch b,UiTheme ui,BitmapFont f,int stage,Player p,WorldGimmicks mechanisms,RegionGuide guide,LamplighterEncounter lamp,SideBossEncounter side,boolean mini){
         if(stage<1||stage>3)return;
-        Rectangle panel=mini?new Rectangle(526,247,102,68):new Rectangle(28,42,584,286);
+        Rectangle panel=mini?new Rectangle(526,229,102,68):new Rectangle(28,42,584,286);
         if(!mini)ui.rect(b,0,0,640,360,UiTheme.SURFACE,.97f);
         ui.rect(b,panel.x,panel.y,panel.width,panel.height,UiTheme.SURFACE,1);
         ui.panel(b,panel.x,panel.y,panel.width,panel.height);
-        if(mini)ui.centered(b,f,"Tab 지도",new Rectangle(530,297,94,16),.61f,UiTheme.TEXT);
+        if(mini)ui.centered(b,f,"Tab 지도",new Rectangle(panel.x+4,panel.y+50,94,16),.61f,UiTheme.TEXT);
         else{
             ui.diamond(b,51,300,6,UiTheme.GOLD,.9f);
             ui.text(b,f,StageLayout.name(stage),66,313,1.05f,UiTheme.TEXT,390);
@@ -67,7 +67,7 @@ final class ExplorationMap {
             ui.text(b,f,"0"+stage+" / 03",514,307,.72f,UiTheme.GOLD,75);
             for(float x:new float[]{38,602})for(float y:new float[]{52,318})ui.diamond(b,x,y,3,UiTheme.GOLD,.9f);
         }
-        Rectangle plot=mini?new Rectangle(532,253,90,40):new Rectangle(50,108,540,160);
+        Rectangle plot=mini?new Rectangle(panel.x+6,panel.y+6,90,40):new Rectangle(50,108,540,160);
         Rectangle v=view(stage,p,mini);
         float scale=Math.min(plot.width/v.width,plot.height/v.height);
         float ox=plot.x+(plot.width-v.width*scale)/2,oy=plot.y+(plot.height-v.height*scale)/2;

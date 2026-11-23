@@ -35,11 +35,12 @@ public class Player {
     private float bodyHeight(){return crouching?32f:height;}
     private boolean canStand(){if(worldSolids==null)return true;Rectangle standing=new Rectangle(x,y,width,height);for(Rectangle r:worldSolids)if(r.width>0&&standing.overlaps(r))return false;return true;}
 
-    private int jumpCount, attackCount, dashCount;
+    private int jumpCount, attackCount, dashCount, dropCount;
     public float getWalkDistance() { return walkDistance; }
     public int getJumpCount() { return jumpCount; }
     public int getAttackCount() { return attackCount; }
     public int getDashCount() { return dashCount; }
+    public int getDropCount() { return dropCount; }
     private boolean screenLeft, screenRight;
     private boolean pendingJump, pendingAttack, pendingDash;
     private boolean pendingSkill, skillInput, usingSkill;
@@ -200,7 +201,7 @@ public class Player {
         x = startX;
         y = startY;
 
-        moonArt = MoonAtlas.acquire("art/hero.png",4,4);
+        moonArt = MoonAtlas.acquireIsolated("art/hero.png",4,4,11);
         lookArt = MoonAtlas.acquire("art/hero-look.png",2,2);
     }
 
@@ -224,6 +225,7 @@ public class Player {
                 KeyBindings.pressed(KeyBindings.Action.LOOK_DOWN),canGesture,support);
         boolean drop=tap&&support!=null&&platforms.contains(support);
         if(drop){
+            dropCount++;
             ignoredPlatform=support;dropTimer=.25f;support=null;y-=2;velocityY=-100;onGround=false;
             coyoteTimer=jumpBufferTimer=0;jumpInput=false;
         }
