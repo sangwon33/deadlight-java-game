@@ -23,51 +23,31 @@ final class GameHud implements Disposable {
     private static final Color LOST_HEALTH = new Color(.76f,.4f,.33f,1);
     private static final Color COIN = new Color(.8f,.69f,.46f,1);
     private static final Color POWER = new Color(.69f,.61f,.82f,1);
+    private static final Color HEART_RUBY=new Color(.80f,.22f,.29f,1);
     private final Color fillShade=new Color();
     private CombatFeedback effects;
     void effects(CombatFeedback value){effects=value;}
     private boolean pauseHover,inventoryHover,pointerHeld;
     private int actionHover=-1;
     void pointer(boolean pause,boolean inventory,boolean held,int action){pauseHover=pause;inventoryHover=inventory;pointerHeld=held;actionHover=action;}
-    private void potion(SpriteBatch b,BitmapFont f,float x,float y,int count,Texture image,float buff,KeyBindings.Action action){
-        disc(b,x,y-1,16.8f,HUD_DARK,.65f);
-        disc(b,x,y,16,METAL,1);
-        disc(b,x,y,14.8f,SLOT_GRAY,1);
-        arc(b,x,y,15.3f,35,145,.65f,RIM,.8f);
+    private void item(SpriteBatch b,BitmapFont f,float left,int row,int count,Texture image,float buff,KeyBindings.Action action){
+        float x=left+27,y=310-row*24;
         float pulse=effects==null?0:effects.actionFlash(action);
-        if(pulse>0)arc(b,x,y,18+(1-pulse)*3,0,360,1.2f,action==KeyBindings.Action.HEAL?UiTheme.SUCCESS:POWER,pulse*(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.3f:1));
-        float packed=b.getPackedColor();b.setColor(1,1,1,count>0||buff>0?1:.36f);
-        if(image!=null){
-            float scale=Math.min(18f/image.getWidth(),22f/image.getHeight());
-            float w=image.getWidth()*scale,h=image.getHeight()*scale;
-            b.draw(image,x-w/2,y-h/2+1,w,h);
-        }
-        b.setPackedColor(packed);
-        if(buff>0)arc(b,x,y,17.8f,90,90+360*Math.min(1,buff/GameBalance.POWER_DURATION),1.5f,POWER,1);
-        String key=KeyBindings.name(action);
-        float keyWidth=Math.max(24,Math.min(84,16+key.length()*6.2f));
-        capsule(b,x+24,y-8,keyWidth,16,HUD_DARK,.94f);
-        ui.centered(b,f,key,new Rectangle(x+24,y-8,keyWidth,16),.61f,UiTheme.TEXT);
-        // Quantity stays separate from the current, remappable use key.
-        String quantity=Integer.toString(Math.max(0,count));
-        float badgeWidth=Math.max(15,9+quantity.length()*5.5f),badgeX=x-11-badgeWidth/2;
-        capsule(b,badgeX-1,y-19,badgeWidth+2,15,METAL,1);
-        capsule(b,badgeX,y-18,badgeWidth,13,HUD_DARK,1);
-        ui.centered(b,f,quantity,new Rectangle(badgeX-3,y-18,badgeWidth+6,13),.57f,count>0?UiTheme.TEXT:UiTheme.MUTED);
+        ui.verticalFade(b,left+14,y-10,90,21,HUD_DARK,.52f,0);
+        Color potionColor=action==KeyBindings.Action.HEAL?HEART_RUBY:action==KeyBindings.Action.POWER?POWER:UiTheme.SUCCESS;
+        if(pulse>0)ui.diamond(b,x,y,12+(1-pulse)*3,potionColor,pulse*.35f);
+        if(image!=null){float packed=b.getPackedColor();b.setColor(1,1,1,count>0||buff>0?1:.4f);float k=Math.min(17f/image.getWidth(),19f/image.getHeight());b.draw(image,x-image.getWidth()*k/2,y-image.getHeight()*k/2,image.getWidth()*k,image.getHeight()*k);b.setPackedColor(packed);}
+        ui.label(b,f,String.format(java.util.Locale.ROOT,"%02d",Math.max(0,count)),new Rectangle(left+40,y-9,34,19),.73f,count>0?UiTheme.TEXT:UiTheme.MUTED,Align.left);
+        ui.label(b,f,KeyBindings.name(action),new Rectangle(left+78,y-7,60,15),.49f,UiTheme.MUTED,Align.left);
+        if(buff>0){ui.rect(b,left+40,y-11,32,1.5f,UiTheme.BORDER,.8f);ui.rect(b,left+40,y-11,32*Math.min(1,buff/10),1.5f,potionColor,1);ui.text(b,f,(int)Math.ceil(buff)+"초",left+109,y+5,.48f,potionColor,28);}
     }
     private void money(SpriteBatch b,BitmapFont f,float left,int gold){
-        float flash=effects==null?0:effects.goldFlash();
-        if(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS))flash*=.25f;
-        capsule(b,left+490,328,100,28,METAL,.7f);
-        capsule(b,left+491,329,98,26,HUD_DARK,.96f);
-        float cx=left+505,cy=342;
-        if(flash>0)arc(b,cx,cy,9+(1-flash)*4,0,360,1.2f,COIN,flash);
-        disc(b,cx,cy,7.5f,HUD_DARK,1);disc(b,cx,cy,6.5f+flash*.8f,COIN,1);
-        arc(b,cx,cy,5.1f,0,360,.65f,HUD_DARK,.65f);
-        ui.diamond(b,cx,cy,2.5f,HUD_DARK,.9f);
-        ui.line(b,cx-3,cy+4,cx,cy+5,.7f,UiTheme.TEXT,.7f);
-        ui.label(b,f,Integer.toString(gold),new Rectangle(left+514,331,71,22),.73f,flash>0?UiTheme.GOLD:UiTheme.TEXT,Align.right);
-        if(effects!=null&&effects.goldNotice()>0)ui.label(b,f,"+"+effects.goldNotice(),new Rectangle(left+420,333,62,18),.65f,UiTheme.SUCCESS,Align.right);
+        float flash=effects==null?0:effects.goldFlash();if(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS))flash*=.25f;
+        float x=left+27,y=310;ui.verticalFade(b,left+14,y-10,90,21,HUD_DARK,.52f,0);
+        if(flash>0)arc(b,x,y,9+(1-flash)*4,0,360,1,COIN,flash);
+        disc(b,x,y,7.5f,HUD_DARK,1);disc(b,x,y,6.5f,COIN,1);arc(b,x,y,4.9f,0,360,.7f,HUD_DARK,.8f);ui.diamond(b,x,y,2.3f,HUD_DARK,.9f);
+        ui.label(b,f,String.format(java.util.Locale.ROOT,"%02d",gold),new Rectangle(left+40,y-9,63,19),.73f,flash>0?UiTheme.GOLD:UiTheme.TEXT,Align.left);
+        if(effects!=null&&effects.goldNotice()>0)ui.text(b,f,"+"+effects.goldNotice(),left+104,y+7,.6f,UiTheme.SUCCESS,55);
     }
     private void pause(SpriteBatch b,float left){
         Rectangle r=pauseBounds(left);float x=r.x+r.width/2,y=r.y+r.height/2;
@@ -79,11 +59,12 @@ final class GameHud implements Disposable {
         ui.rect(b,x-4.5f,y-4.8f-pressed,2.8f,9.6f,UiTheme.TEXT,1);
         ui.rect(b,x+1.7f,y-4.8f-pressed,2.8f,9.6f,UiTheme.TEXT,1);
     }
-    void draw(SpriteBatch b,BitmapFont f,float left,Player p,float trail,int heals,int powers,int gold,Texture heal,Texture power,Texture coin){
+    void draw(SpriteBatch b,BitmapFont f,float left,Player p,float trail,int heals,int powers,int speeds,int gold,Texture heal,Texture power,Texture coin,Texture haste){
         ui.verticalFade(b,left,286,640,74,UiTheme.SURFACE,0,.76f);
         healthBar(b,f,left,p,trail);
-        potion(b,f,left+32,204,heals,heal,0,KeyBindings.Action.HEAL);
-        potion(b,f,left+32,156,powers,power,p.getAttackPotionTimer(),KeyBindings.Action.POWER);
+        item(b,f,left,1,heals,heal,0,KeyBindings.Action.HEAL);
+        item(b,f,left,2,powers,power,p.getAttackPotionTimer(),KeyBindings.Action.POWER);
+        item(b,f,left,3,speeds,haste,p.getHastePotionTimer(),KeyBindings.Action.HASTE);
         money(b,f,left,gold);
         pause(b,left);
         Rectangle bag=inventoryBounds(left);
@@ -95,19 +76,24 @@ final class GameHud implements Disposable {
     }
 
     private void healthBar(SpriteBatch b,BitmapFont f,float left,Player p,float trail){
-        float x=left+20,y=333,w=180,h=18;
-        float health=Math.max(0,Math.min(1,p.getHealthRatio()));
-        float delayed=Math.max(health,Math.max(0,Math.min(1,trail)));
-        capsule(b,x-2,y-3,w+4,h+4,HUD_DARK,.7f);
-        capsule(b,x-1.5f,y-1.5f,w+3,h+3,METAL,1);
-        capsule(b,x-.5f,y-.5f,w+1,h+1,RIM,.6f);
+        float x=left+43,y=334,w=158,h=16;
+        float health=Math.max(0,Math.min(1,p.getHealthRatio())),delayed=Math.max(health,Math.min(1,trail));
+        float heartX=left+24,heartY=y+h/2;
+        disc(b,heartX,heartY,12.5f,HUD_DARK,.96f);disc(b,heartX,heartY,11.3f,METAL,1);disc(b,heartX,heartY,10.4f,HUD_DARK,1);
+        heart(b,heartX,heartY+.4f,1.08f,RIM);heart(b,heartX,heartY+.4f,.94f,HEART_RUBY);
+        ui.line(b,heartX-3.7f,heartY+2.5f,heartX-2,heartY+3.8f,.75f,UiTheme.TEXT,.7f);
+        capsule(b,x-2,y-2,w+4,h+4,HUD_DARK,.95f);
+        capsule(b,x-1,y-1,w+2,h+2,METAL,1);capsule(b,x-.3f,y-.3f,w+.6f,h+.6f,RIM,.75f);
         capsule(b,x,y,w,h,HUD_DARK,1);
-        healthFill(b,x,y,w,h,delayed,LOST_HEALTH);
-        healthFill(b,x,y,w,h,health,health<=.3f?LOW_HEALTH:HEALTH);
-        ui.line(b,x+10,y+h+.65f,x+w-10,y+h+.65f,.65f,RIM,.65f);
-        if(delayed>health+.005f)ui.line(b,x+w*delayed,y+1,x+w*delayed,y+h-1,.8f,UiTheme.TEXT,.7f);
-        ui.centered(b,f,p.getHealth()+" / "+p.getMaxHealth(),new Rectangle(x,y,w,h),.76f,UiTheme.TEXT);
+        healthFill(b,x,y,w,h,delayed,LOST_HEALTH);healthFill(b,x,y,w,h,health,health<=.3f?LOW_HEALTH:HEALTH);
+        ui.line(b,x+9,y+h-1,x+w-9,y+h-1,.55f,RIM,.55f);
+        ui.centered(b,f,p.getHealth()+" / "+p.getMaxHealth(),new Rectangle(x+10,y,w-20,h),.67f,UiTheme.TEXT);
     }
+    private void heart(SpriteBatch b,float x,float y,float s,Color color){
+        disc(b,x-2.7f*s,y+1.7f*s,3.3f*s,color,1);disc(b,x+2.7f*s,y+1.7f*s,3.3f*s,color,1);
+        ui.triangle(b,x-5.9f*s,y+1.2f*s,x+5.9f*s,y+1.2f*s,x,y-6.5f*s,color,1);
+    }
+
     private void healthFill(SpriteBatch b,float x,float y,float w,float h,float fraction,Color color){
         if(fraction<=0)return;
         float radius=h/2,end=x+w*fraction;
@@ -150,11 +136,14 @@ final class GameHud implements Disposable {
         bossBar(b,f,ui,left,"일식의 처형자"+(boss.isEnraged()?" · 격화":""),boss.getHealth(),boss.getMaxHealth(),boss.getHealthTrail());
     }
     static void bossBar(SpriteBatch b,BitmapFont f,UiTheme ui,float left,String name,int health,int max,float trail){
-        ui.centered(b,f,name,new Rectangle(left+219,306,260,19),.70f,UiTheme.TEXT);
-        ui.rect(b,left+224,295,250,3,UiTheme.SURFACE,.9f);
-        ui.rect(b,left+224,295,250f*trail,3,Color.SALMON,.9f);
-        ui.rect(b,left+224,295,250f*health/max,3,UiTheme.GOLD,1);
-        ui.label(b,f,health+" / "+max,new Rectangle(left+405,280,70,13),.48f,UiTheme.MUTED,Align.right);
+        float x=left+217,y=286,w=264,h=9;
+        float ratio=Math.max(0,Math.min(1,(float)health/max));
+        ui.centered(b,f,name,new Rectangle(x-2,y+13,w+4,18),.68f,UiTheme.TEXT);
+        ui.rect(b,x-2,y-2,w+4,h+4,HUD_DARK,.96f);ui.rect(b,x-1,y-1,w+2,h+2,METAL,1);ui.rect(b,x,y,w,h,HUD_DARK,1);
+        ui.rect(b,x,y,w*Math.max(ratio,Math.min(1,trail)),h,LOST_HEALTH,.9f);
+        ui.rect(b,x,y,w*ratio,h,new Color(.52f,.19f,.26f,1),1);ui.rect(b,x,y+h-2,w*ratio,1,new Color(.91f,.58f,.57f,1),.8f);
+        for(float edge:new float[]{x-6,x+w+6}){ui.diamond(b,edge,y+h/2,5,METAL,1);ui.diamond(b,edge,y+h/2,2.5f,UiTheme.GOLD,1);}
+        ui.centered(b,f,health+" / "+max,new Rectangle(x,y-17,w,14),.49f,UiTheme.MUTED);
     }
     private void ability(SpriteBatch b,BitmapFont f,float left,int index,Player p){
         Rectangle r=actionBounds(left,index);

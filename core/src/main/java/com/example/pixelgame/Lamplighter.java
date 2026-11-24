@@ -5,7 +5,7 @@ import com.badlogic.gdx.math.Rectangle;
 /** Optional tower encounter. Pure combat state, independent of textures and input. */
 final class Lamplighter {
     static final float FLOOR=900, LEFT=720, RIGHT=1550;
-    static final int MAX_HEALTH=144, GOLD=80;
+    static final int MAX_HEALTH=ProgressionBalance.enemyHealth(2,144), GOLD=80;
     enum Phase { DORMANT, IDLE, THRUST_PREP, THRUST, CAST_PREP, CAST, PULL, SWEEP_PREP, SWEEP, RECOVER, DEFEAT }
     final Rectangle body=new Rectangle(LEFT+460,FLOOR,46,94);
     private Phase phase=Phase.DORMANT;
@@ -38,7 +38,7 @@ final class Lamplighter {
     };}
     boolean takeHit(){boolean value=pendingHit;pendingHit=false;return value;}
     float hitOrigin(){return hitOrigin;}
-    int attackDamage(){return enraged()?24:20;}
+    int attackDamage(){return ProgressionBalance.enemyDamage(2,enraged()?24:20);}
     int damage(int amount){
         if(!active()||amount<=0||invincible>0)return 0;
         int dealt=Math.min(health,recovering()?Math.round(amount*GameBalance.COUNTER_MULTIPLIER):amount);

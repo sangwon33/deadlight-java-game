@@ -75,9 +75,41 @@ final class StageLayout {
         slab(p,2240,540,150);slab(p,3090,380,160);slab(p,3340,500,160);
         slab(p,3600,600,150);slab(p,3920,420,170);slab(p,4330,540,160);
         compact(stage,p);
+        addCourtyards(stage,p);
         if(stage==2){slab(p,1100,450,180);slab(p,950,530,180);slab(p,1180,610,180);slab(p,1400,690,180);slab(p,1630,770,190);slab(p,1630,850,190);}
         SideBossArena arena=SideBossArena.forStage(stage);if(arena!=null)arena.platforms(p);
         return p;
+    }
+    /** Additional connected galleries, small step-ups and underpass stepping stones. */
+    private static void addCourtyards(int stage,List<Rectangle> p){
+        float scale=width(stage)/3000f;
+        float[][] ledges={
+            {395,-105,110},{580,-90,110},{960,-70,110},
+            {770,145,100},{900,150,135},
+            {1040,175,130},{1190,250,130},{1340,330,135},
+            {1475,410,130},{1680,340,145},{1850,265,135},
+            {2060,180,150},{2270,155,130},{2490,150,150},
+            {2700,185,135},{2775,280,135},{2640,375,140},
+            {2440,455,150},{2165,500,140},{1980,570,140}
+        };
+        for(float[] ledge:ledges){
+            float x=ledge[0]*scale,top=ledge[1],w=ledge[2]*scale;
+            // Keep existing encounter entrances, floors and ledges clear; use another gallery level if needed.
+            boolean crowded=false;
+            for(Rectangle r:p)if(Math.abs(r.y+r.height-top)<48&&x<r.x+r.width+8&&x+w>r.x-8){crowded=true;break;}
+            if(!crowded&&galleryClear(stage,x,top,w))slab(p,x,top,w);
+            else{
+                float alternate=top+88;
+                boolean clear=true;
+                for(Rectangle r:p)if(Math.abs(r.y+r.height-alternate)<48&&x<r.x+r.width+8&&x+w>r.x-8){clear=false;break;}
+                if(clear&&galleryClear(stage,x,alternate,w))slab(p,x,alternate,w);
+            }
+        }
+    }
+    private static boolean galleryClear(int stage,float x,float top,float width){
+        Rectangle standing=new Rectangle(x,top,width,68);
+        for(Rectangle solid:floors(stage))if(standing.overlaps(solid))return false;
+        return true;
     }
     private static Spawn ground(float x,Enemy.EnemyType type,boolean guard){return new Spawn(x,GROUND,type,guard,0,0);}
     static List<Spawn> enemies(int stage){

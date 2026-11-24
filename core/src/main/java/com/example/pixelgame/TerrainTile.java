@@ -47,4 +47,9 @@ final class TerrainTile {
         batch.draw(region, x, drawY(surfaceY, height), width, height);
     }
 
+    void drawSpan(SpriteBatch batch,float x,float surfaceY,float tileWidth,float visibleWidth,float height){
+        TextureRegion cut=new TextureRegion(region,0,0,Math.max(1,Math.round(region.getRegionWidth()*visibleWidth/tileWidth)),region.getRegionHeight());
+        batch.draw(cut,x,drawY(surfaceY,height),visibleWidth,height);
+    }
+
 }

@@ -17,19 +17,20 @@ final class SideBoss {
     private int health,pattern,combo;
     private boolean right=true,moving,attackHit,pendingHit,rewardClaimed;
     private float hitOrigin;
-    SideBoss(SideBossArena arena){this.arena=arena;health=arena.health();body=new Rectangle(arena.x()+480,arena.floor(),arena.bodyWidth(),arena.bodyHeight());}
+    SideBoss(SideBossArena arena){this.arena=arena;health=maxHealth();body=new Rectangle(arena.x()+480,arena.floor(),arena.bodyWidth(),arena.bodyHeight());}
     Phase phase(){return phase;}
     int health(){return health;}
+    int maxHealth(){return ProgressionBalance.enemyHealth(arena.stage(),arena.health());}
     float cx(){return body.x+body.width/2;}
     boolean active(){return phase!=Phase.DORMANT&&phase!=Phase.DEFEAT;}
     boolean defeated(){return phase==Phase.DEFEAT;}
-    boolean enraged(){return health>0&&health<=arena.health()/2;}
+    boolean enraged(){return health>0&&health<=maxHealth()/2;}
     boolean right(){return right;}
     float flash(){return flash;}
     float deathTime(){return deathTime;}
     float impact(){return impact;}
     float impactX(){return impactX;}
-    int attackDamage(){return arena.roots()?(enraged()?22:18):(enraged()?26:22);}
+    int attackDamage(){int base=arena.roots()?(enraged()?22:18):(enraged()?26:22);return ProgressionBalance.enemyDamage(arena.stage(),base);}
     boolean recovering(){return phase==Phase.RECOVER;}
     boolean canStart(Rectangle p,boolean grounded){return phase==Phase.DORMANT&&grounded&&Math.abs(p.y-arena.floor())<4&&p.x>=arena.right()-160&&p.x+p.width<=arena.right()-40;}
     boolean start(Rectangle p,boolean grounded){if(!canStart(p,grounded))return false;right=p.x>cx();enter(Phase.IDLE,.85f);return true;}

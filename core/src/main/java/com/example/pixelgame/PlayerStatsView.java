@@ -10,14 +10,14 @@ import com.badlogic.gdx.utils.Align;
 final class PlayerStatsView {
     private PlayerStatsView(){}
     static Rectangle mapBounds(){return new Rectangle(432,42,186,286);}
-    private static final String[] NAMES={"체력","공격력","이동속도","공격속도","크리티컬 확률","크리티컬 데미지","스킬 공격력","스킬 쿨타임","대시 쿨타임"};
-    static Rectangle hudBounds(){return new Rectangle(490,242,138,78);}
-    static Rectangle minimapBounds(){return new Rectangle(526,170,102,68);}
+    private static final String[] NAMES={"공격력","이동속도","공격속도","크리티컬 확률","크리티컬 데미지","스킬 공격력","스킬 쿨타임","대시 쿨타임"};
+    static Rectangle hudBounds(){return new Rectangle(15,126,100,100);}
+    static Rectangle minimapBounds(){return new Rectangle(518,245,110,76);}
     static Rectangle hudCell(int index){
-        Rectangle r=hudBounds();return new Rectangle(r.x+(index%2)*69,r.y+r.height-(index/2+1)*26,69,26);
+        Rectangle r=hudBounds();return new Rectangle(r.x,r.y+r.height-(index+1)*20,r.width,20);
     }
     static String[] values(Player p){
-        return new String[]{p.getHealth()+" / "+p.getMaxHealth(),Integer.toString(p.getAttackDamage()),
+        return new String[]{Integer.toString(p.getAttackDamage()),
                 String.format(Locale.ROOT,"%.0f",p.getMoveSpeed()),String.format(Locale.ROOT,"%.2f회/초",p.getAttackSpeed()),
                 String.format(Locale.ROOT,"%.0f%%",p.getCriticalChance()*100),
                 String.format(Locale.ROOT,"%.0f%%",p.getCriticalDamageMultiplier()*100),
@@ -40,30 +40,20 @@ final class PlayerStatsView {
             float y=first-i*step;
             ui.label(b,font,NAMES[i],new Rectangle(r.x+5,y,labelWidth,19),.61f,UiTheme.MUTED,Align.left);
             ui.label(b,font,data[i],new Rectangle(r.x+labelWidth,y,r.width-labelWidth-5,19),.65f,
-                    i==1&&p.getAttackPotionTimer()>0?UiTheme.SUCCESS:UiTheme.TEXT,Align.right);
+                    (i==0&&p.getAttackPotionTimer()>0||i==1&&p.getHastePotionTimer()>0)?UiTheme.SUCCESS:UiTheme.TEXT,Align.right);
         }
         ui.line(b,r.x+12,r.y+41,r.x+r.width-12,r.y+41,.6f,UiTheme.BORDER,.8f);
         ui.text(b,font,"공격속도: 3타 연계 기준",r.x+12,r.y+24,.52f,UiTheme.MUTED,r.width-24);
     }
     private static void compact(SpriteBatch b,UiTheme ui,BitmapFont font,Player p,Rectangle r,int hovered){
-        ui.rect(b,r.x,r.y,r.width,r.height,UiTheme.SURFACE,.78f);
-        ui.line(b,r.x+5,r.y+r.height,r.x+r.width-5,r.y+r.height,.6f,UiTheme.GOLD,.65f);
-        ui.line(b,r.x+5,r.y,r.x+r.width-5,r.y,.6f,UiTheme.BORDER,.75f);
-        ui.line(b,r.x+69,r.y+6,r.x+69,r.y+r.height-6,.5f,UiTheme.BORDER,.4f);
-        String[] data=values(p);data[0]=p.getHealth()+"/"+p.getMaxHealth();
-        data[3]=String.format(Locale.ROOT,"%.2f/s",p.getAttackSpeed());
-        for(int i=0;i<6;i++){
-            Rectangle cell=hudCell(i);float cy=cell.y+13;
-            if(i==hovered)ui.rect(b,cell.x+2,cell.y+2,cell.width-4,cell.height-4,UiTheme.GOLD,.08f);
-            StatIcons.draw(b,ui,i,cell.x+11,cy);
-            ui.label(b,font,data[i],new Rectangle(cell.x+20,cell.y+4,48,18),.57f,
-                    i==1&&p.getAttackPotionTimer()>0?UiTheme.SUCCESS:UiTheme.TEXT,Align.right);
-            if(i<4)ui.line(b,cell.x+6,cell.y,cell.x+cell.width-6,cell.y,.45f,UiTheme.BORDER,.35f);
+        String[] data=values(p);data[2]=String.format(Locale.ROOT,"%.2f/s",p.getAttackSpeed());
+        ui.verticalFade(b,r.x,r.y,r.width,r.height,UiTheme.SURFACE,.12f,.4f);
+        ui.line(b,r.x+5,r.y+r.height,r.x+r.width-5,r.y+r.height,.5f,UiTheme.BORDER,.7f);
+        for(int i=0;i<5;i++){
+            Rectangle cell=hudCell(i);if(i==hovered)ui.rect(b,cell.x,cell.y,cell.width,cell.height,UiTheme.GOLD,.07f);
+            StatIcons.draw(b,ui,i+1,cell.x+12,cell.y+10);
+            ui.label(b,font,data[i],new Rectangle(cell.x+25,cell.y+2,70,17),.57f,(i==0&&p.getAttackPotionTimer()>0||i==1&&p.getHastePotionTimer()>0)?UiTheme.SUCCESS:UiTheme.TEXT,Align.left);
         }
-        if(hovered>=0&&hovered<6){
-            Rectangle cell=hudCell(hovered),hint=new Rectangle(r.x-130,cell.y+2,122,22);
-            ui.rect(b,hint.x,hint.y,hint.width,hint.height,UiTheme.SURFACE,.96f);
-            ui.centered(b,font,NAMES[hovered],hint,.65f,UiTheme.TEXT);
-        }
+        if(hovered>=0&&hovered<5){Rectangle cell=hudCell(hovered),hint=new Rectangle(r.x+r.width+6,cell.y,113,20);ui.rect(b,hint.x,hint.y,hint.width,hint.height,UiTheme.SURFACE,.96f);ui.centered(b,font,NAMES[hovered],hint,.61f,UiTheme.TEXT);}
     }
 }

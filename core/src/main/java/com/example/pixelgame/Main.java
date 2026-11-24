@@ -47,7 +47,6 @@ public class Main extends ApplicationAdapter {
     private static final boolean DEBUG_ATTACK_BOUNDS = false;
     private final CombatFeedback feedback = new CombatFeedback();
     private final GoldDrops goldDrops=new GoldDrops();
-    private final TrainingDamageStats trainingDamage=new TrainingDamageStats();
     private float trainingRespawn;
     private final RegionGuide regionGuide = new RegionGuide();
     private final WorldGimmicks gimmicks=new WorldGimmicks();
@@ -113,13 +112,13 @@ public class Main extends ApplicationAdapter {
     private final LobbyView lobbyView=new LobbyView();
     private int lobbySelection, lobbyMouseX=-1, lobbyMouseY=-1;
 
-    private static final int ATTACK_PRICE = 50;
+    private static final int ATTACK_PRICE = ProgressionBalance.ATTACK_PRICE;
 
-    private static final int HEALTH_PRICE = 40;
+    private static final int HEALTH_PRICE = ProgressionBalance.HEALTH_PRICE;
 
-    private static final int HEAL_POTION_PRICE = 20;
+    private static final int HEAL_POTION_PRICE = ProgressionBalance.HEAL_PRICE;
 
-    private static final int ATTACK_POTION_PRICE = 35;
+    private static final int ATTACK_POTION_PRICE = ProgressionBalance.BUFF_PRICE;
 
 
     // 한 번의 플레이 동안 유지되고 종료되면 모두 초기화된다.
@@ -132,7 +131,10 @@ public class Main extends ApplicationAdapter {
 
     private int healPotions = 0;
 
-    private int attackPotions = 0;
+    private int attackPotions = 0, speedPotions=0;
+    private int shopSelection;
+    private int shopPointerX,shopPointerY;
+    private float savedHasteTime;
 
     private int savedHealth = GameBalance.BASE_HEALTH;
 
@@ -163,6 +165,7 @@ public class Main extends ApplicationAdapter {
     private Texture healPotionIcon;
 
     private Texture attackPotionIcon;
+    private Texture speedPotionIcon;
 
     private Texture mainMenuBackgroundTexture;
 
@@ -379,8 +382,9 @@ public class Main extends ApplicationAdapter {
         goldIcon=moonRelics.croppedTexture(6);
         attackUpgradeIcon=moonRelics.croppedTexture(8);
         healthUpgradeIcon=moonRelics.croppedTexture(9);
-        healPotionIcon=moonRelics.croppedTexture(4);
+        try(MoonAtlas heal=MoonAtlas.acquire("art/potion-heal-red-v1.png",1,1)){healPotionIcon=heal.croppedTexture(0);}
         attackPotionIcon=moonRelics.croppedTexture(5);
+        try(MoonAtlas haste=MoonAtlas.acquire("art/potion-haste-v1.png",1,1)){speedPotionIcon=haste.croppedTexture(0);}
     }
 
     private void loadMainMenuTextures() {
@@ -474,12 +478,12 @@ public class Main extends ApplicationAdapter {
         fallenGod = currentStage == STAGE_GODDESS_CHURCH
                 ? new FallenGod(780,GROUND_Y,GODDESS_CHURCH_WORLD_WIDTH) : null;
         trainingTarget = null;
-        goldDrops.clear();trainingDamage.reset();trainingRespawn=0;
+        goldDrops.clear();trainingRespawn=0;
         if (currentStage == STAGE_TUTORIAL) {
             trainingTarget = new Enemy(365,GROUND_Y); trainingTarget.setTrainingDummy(); enemies.add(trainingTarget);
         } else {
             for (StageLayout.Spawn spawn : StageLayout.enemies(currentStage)) {
-                Enemy enemy = spawn.create(); enemy.configureWorld(solidFloors,platforms,StageLayout.bottom(currentStage)); enemies.add(enemy);
+                Enemy enemy = spawn.create();enemy.scaleForStage(currentStage); enemy.configureWorld(solidFloors,platforms,StageLayout.bottom(currentStage)); enemies.add(enemy);
                 if(enemy.isFlying()||enemy.isRanged()){
                     ArrayList<Rectangle> obstacles=new ArrayList<>(solidFloors);obstacles.addAll(platforms);enemy.setWorldSolids(obstacles);
                 }
@@ -489,7 +493,7 @@ public class Main extends ApplicationAdapter {
 
         // 새 스테이지에서도 이전 강화/체력/버프를 이어받는다.
 
-        player.restoreRunStats(attackLevels, healthLevels, savedHealth, savedBuffTime, rewardHealthBonus());
+        player.restoreRunStats(attackLevels, healthLevels, savedHealth, savedBuffTime, rewardHealthBonus());player.restoreHaste(savedHasteTime);
         feedback.reset(player.getHealthRatio());
 
     }
@@ -517,9 +521,9 @@ public class Main extends ApplicationAdapter {
         StageLayout.Supply supply;
         while ((supply = regionGuide.takeCollected()) != null) {
             awardGold(supply.gold());
-            healPotions += supply.heals(); attackPotions += supply.powers();
+            healPotions += supply.heals(); attackPotions += supply.powers();speedPotions+=supply.powers();
             String item = supply.heals() > 0 ? "회복 물약 +"+supply.heals()
-                    : supply.powers() > 0 ? "공격 물약 +"+supply.powers() : "숨겨진 보급품";
+                    : supply.powers() > 0 ? "공격·신속 물약 +"+supply.powers() : "숨겨진 보급품";
             regionGuide.notice(item, "골드 +"+supply.gold()+" / 높은 길 탐색 보상");
         }
     }
@@ -629,19 +633,23 @@ public class Main extends ApplicationAdapter {
                 && isMouseInside(JourneyView.skipBounds(tutorialPanelLeft(),tutorialPanelOffsetY()))) {
             tutorial.skip(); beginStageTransition(STAGE_ONE, "모험을 시작합니다."); return;
         }
+        if(currentStage==STAGE_TUTORIAL&&Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)){
+            if(isMouseInside(JourneyView.previousBounds(tutorialPanelLeft()))){tutorial.previous(player);return;}
+            if(isMouseInside(JourneyView.nextBounds(tutorialPanelLeft()))){tutorial.next(player);return;}
+        }
         merchantAnimationTime += deltaTime;
         if (isNearMerchant() && (KeyBindings.justPressed(KeyBindings.Action.INTERACT) ||
                 (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) && isMouseInsideWorld(merchantIconBounds())))) {
-            player.clearActionInput(); shopOpen = true; shopMessage = ""; shopMessageTimer = 0; return;
+            player.clearActionInput(); shopOpen = true;shopSelection=0;shopPointerX=Gdx.input.getX();shopPointerY=Gdx.input.getY(); shopMessage = ""; shopMessageTimer = 0; return;
         }
         if (KeyBindings.justPressed(KeyBindings.Action.HEAL)) useHealPotion();
         if (KeyBindings.justPressed(KeyBindings.Action.POWER)) useAttackPotion();
+        if (KeyBindings.justPressed(KeyBindings.Action.HASTE)) useHastePotion();
         // Stopwatch uses real active frame time, independent of the physics delta clamp.
         if (currentStage != STAGE_TUTORIAL) runStats.advance(Gdx.graphics.getDeltaTime());
         if (showScreenControls) gameControls.update(player);
         else player.setScreenInput(false, false, false, false, false);
         player.captureActionInput();
-        trainingDamage.update(deltaTime);
         awardGold(goldDrops.update(deltaTime,player,solidFloors,platforms,StageLayout.bottom(currentStage)));
         if (feedback.stopped()) return;
         int interruptionsBeforeCombat = player.getInterruptedSkillCount();
@@ -852,7 +860,7 @@ public class Main extends ApplicationAdapter {
 
     private void enterStage(int nextStage, String startMessage) {
         if (currentStage == STAGE_TUTORIAL) { startStage(nextStage); return; }
-        savedHealth = player.getHealth(); savedBuffTime = player.getAttackPotionTimer();
+        savedHealth = player.getHealth(); savedBuffTime = player.getAttackPotionTimer();savedHasteTime=player.getHastePotionTimer();
         disposeGameObjects(); currentStage = nextStage;
         runStats.enterStage(nextStage);
         selectStageTextures(); createPlatforms(); createGameObjects();
@@ -898,6 +906,10 @@ public class Main extends ApplicationAdapter {
         exploration.reset();
         resetRunData(); disposeGameObjects();
         currentStage = stage;
+        if(stage>STAGE_ONE){
+            ProgressionBalance.Reference reference=ProgressionBalance.reference(stage);
+            attackLevels=reference.attackLevels();healthLevels=reference.healthLevels();savedHealth=reference.health();
+        }
         selectStageTextures(); createPlatforms(); createGameObjects();
         camera.position.set(VIEW_WIDTH / 2, WORLD_HEIGHT / 2, 0); camera.update();
         gameMode = GameMode.PLAYING;
@@ -910,7 +922,7 @@ public class Main extends ApplicationAdapter {
     }
 
     private void resetRunData() {
-        goldDrops.clear();trainingDamage.reset();trainingRespawn=0;
+        goldDrops.clear();trainingRespawn=0;
         rewardOpen = false; rewardSelection = rewardDestination = resultPage = 0; rewardStageMessage = null;
         runRewards.clear();
         runDefeated = 0;
@@ -929,7 +941,7 @@ public class Main extends ApplicationAdapter {
 
         healPotions = 0;
 
-        attackPotions = 0;
+        attackPotions = 0;speedPotions=0;savedHasteTime=0;
 
         savedHealth = GameBalance.BASE_HEALTH;
 
@@ -974,7 +986,7 @@ public class Main extends ApplicationAdapter {
 
     private void captureCheckpoint() {
         checkpoint = new StageCheckpoint(currentStage, gold, attackLevels, healthLevels,
-                healPotions, attackPotions, player.getHealth(), player.getAttackPotionTimer(), runDefeated, runGoldEarned, runRewards);
+                healPotions, attackPotions, player.getHealth(), player.getAttackPotionTimer(), runDefeated, runGoldEarned, runRewards,speedPotions,player.getHastePotionTimer());
     }
 
     private void retryStage() {
@@ -987,7 +999,7 @@ public class Main extends ApplicationAdapter {
         runStats = accumulated; runStats.retry();
         currentStage = entry.stage(); gold = entry.gold();
         attackLevels = entry.attackLevels(); healthLevels = entry.healthLevels();
-        healPotions = entry.heals(); attackPotions = entry.powers();
+        healPotions = entry.heals(); attackPotions = entry.powers();speedPotions=entry.speeds();savedHasteTime=entry.hasteSeconds();
         savedHealth = entry.health(); savedBuffTime = entry.buffSeconds();
         runDefeated = entry.defeated(); runGoldEarned = entry.earned();
         runRewards.addAll(entry.rewards());
@@ -1159,7 +1171,6 @@ public class Main extends ApplicationAdapter {
                 );
 
                 int dealt = healthBeforeHit - enemy.getHealth();
-                if(enemy==trainingTarget&&dealt>0)trainingDamage.hit(enemy.getLastHitDamage());
                 Rectangle enemyBounds = enemy.getBounds();
                 swordImpact(enemyBounds,enemy==trainingTarget&&dealt>0?enemy.getLastHitDamage():dealt,player.isComboFinisher(),enemyBounds.y+enemyBounds.height+14);
                 if (dealt > 0 && feedback.allowImpactSound()) combatHitSound.play(effectiveEffects() * .46f);
@@ -1206,14 +1217,14 @@ public class Main extends ApplicationAdapter {
         if(lamplighter!=null&&!lamplighterHitThisSkill){
             float center=lamplighter.boss.cx();
             if(player.isFacingRight()?center>=player.getSkillSweepStartX():center<=player.getSkillSweepStartX()){
-                int dealt=lamplighter.hit(bounds,player.getSkillDamage());
+                int dealt=lamplighter.hit(bounds,player.getCurrentSkillDamage());
                 if(dealt>0){lamplighterHitThisSkill=true;lamplighterImpact(dealt);}
             }
         }
         if(sideBoss!=null&&!sideBossHitThisSkill){
             float center=sideBoss.boss.cx();
             if(player.isFacingRight()?center>=player.getSkillSweepStartX():center<=player.getSkillSweepStartX()){
-                int dealt=sideBoss.hit(bounds,player.getSkillDamage());
+                int dealt=sideBoss.hit(bounds,player.getCurrentSkillDamage());
                 if(dealt>0){sideBossHitThisSkill=true;sideBossImpact(dealt);}
             }
         }
@@ -1221,19 +1232,20 @@ public class Main extends ApplicationAdapter {
             if (enemy.getHealth() <= 0 || enemiesHitThisSkill.contains(enemy) || !bounds.overlaps(enemy.getBounds())) continue;
             float targetCenter = enemy.getBounds().x + enemy.getBounds().width / 2;
             if (player.isFacingRight() ? targetCenter < player.getSkillSweepStartX() : targetCenter > player.getSkillSweepStartX()) continue;
-            int before=enemy.getHealth();enemy.takeDamage(player.getSkillDamage(), player.getCenterX(), true);
+            int before=enemy.getHealth();enemy.takeDamage(player.getCurrentSkillDamage(), player.getCenterX(), true);
             int dealt=before-enemy.getHealth();
             if(dealt>0){
-                if(enemy==trainingTarget)trainingDamage.hit(enemy.getLastHitDamage());
                 Rectangle target=enemy.getBounds();
-                feedback.hit(enemy.getCenterX(),target.y+target.height*.6f,enemy==trainingTarget?enemy.getLastHitDamage():dealt,false,true,target.y+target.height+14);
+                feedback.hit(enemy.getCenterX(),target.y+target.height*.6f,enemy==trainingTarget?enemy.getLastHitDamage():dealt,false,true,target.y+target.height+14);feedback.critical(player.isSkillCritical());
             }
             enemiesHitThisSkill.add(enemy);
         }
         if (fallenGod != null && fallenGod.isAlive() && !bossHitThisSkill && bounds.overlaps(fallenGod.getBounds())
                 && (player.isFacingRight() ? fallenGod.getBounds().x + fallenGod.getBounds().width/2 >= player.getSkillSweepStartX()
                         : fallenGod.getBounds().x + fallenGod.getBounds().width/2 <= player.getSkillSweepStartX())) {
-            fallenGod.takeDamage(player.getSkillDamage());
+            int before=fallenGod.getHealth();fallenGod.takeDamage(player.getCurrentSkillDamage());
+            int dealt=before-fallenGod.getHealth();Rectangle r=fallenGod.getBounds();
+            feedback.hit(r.x+r.width/2,r.y+r.height*.6f,dealt,false,true,r.y+r.height+14);if(dealt>0)feedback.critical(player.isSkillCritical());
             bossHitThisSkill = true;
         }
     }
@@ -1247,7 +1259,7 @@ public class Main extends ApplicationAdapter {
     private void lamplighterImpact(int dealt,boolean heavy,boolean sword){
         Rectangle r=lamplighter.boss.body;
         if(sword)swordImpact(r,dealt,heavy,r.y+r.height+14);
-        else feedback.hit(r.x+r.width/2,r.y+65,dealt,false,heavy,r.y+r.height+14);
+        else {feedback.hit(r.x+r.width/2,r.y+65,dealt,false,heavy,r.y+r.height+14);if(dealt>0)feedback.critical(player.isSkillCritical());}
         if(combatHitSound!=null&&feedback.allowImpactSound())combatHitSound.play(effectiveEffects()*.55f);
     }
 
@@ -1260,14 +1272,14 @@ public class Main extends ApplicationAdapter {
     private void sideBossImpact(int dealt,boolean heavy,boolean sword){
         Rectangle r=sideBoss.boss.body;
         if(sword)swordImpact(r,dealt,heavy,r.y+r.height+14);
-        else feedback.hit(r.x+r.width/2,r.y+65,dealt,false,heavy,r.y+r.height+14);
+        else {feedback.hit(r.x+r.width/2,r.y+65,dealt,false,heavy,r.y+r.height+14);if(dealt>0)feedback.critical(player.isSkillCritical());}
         if(combatHitSound!=null&&feedback.allowImpactSound())combatHitSound.play(effectiveEffects()*.55f);
     }
     private void swordImpact(Rectangle target,int dealt,boolean heavy,float labelY){
         Rectangle blade=player.getAttackBounds();
         float x=(Math.max(blade.x,target.x)+Math.min(blade.x+blade.width,target.x+target.width))*.5f;
         float y=(Math.max(blade.y,target.y)+Math.min(blade.y+blade.height,target.y+target.height))*.5f;
-        feedback.swordHit(x,y,dealt,heavy,labelY);
+        feedback.swordHit(x,y,dealt,heavy,labelY);if(dealt>0)feedback.critical(player.isAttackCritical());
     }
 
     private void drawGame() {
@@ -1337,12 +1349,14 @@ public class Main extends ApplicationAdapter {
         spriteBatch.silhouette(true);
         if(lamplighter!=null){spriteBatch.normal();lamplighter.drawActor(spriteBatch,player);spriteBatch.silhouette(true);}
         if(sideBoss!=null){spriteBatch.normal();sideBoss.drawActor(spriteBatch,player);spriteBatch.silhouette(true);}
+        spriteBatch.normal();PotionAura.drawBehind(spriteBatch,uiTheme,player,moonTime);spriteBatch.playerSilhouette(player);
         player.draw(spriteBatch);
         spriteBatch.normal();
         for(Enemy enemy:enemies)enemy.drawProjectiles(spriteBatch);
         if(lamplighter!=null)lamplighter.drawEffects(spriteBatch);
         if(sideBoss!=null)sideBoss.drawEffects(spriteBatch);
         if(fallenGod!=null)fallenGod.drawEffects(spriteBatch);
+        PotionAura.drawFront(spriteBatch,uiTheme,player,moonTime);
         player.drawAttackEffects(spriteBatch);
         goldDrops.draw(spriteBatch,uiTheme);
 
@@ -1368,7 +1382,6 @@ public class Main extends ApplicationAdapter {
         if(currentStage==STAGE_TUTORIAL)journeyView.tutorialWorld(spriteBatch,uiFont,tutorial);
         enemyAttackView.labels(spriteBatch, uiFont, uiTheme, enemies, fallenGod);
         feedback.drawText(spriteBatch, uiFont, uiTheme);
-        if(currentStage==STAGE_TUTORIAL)trainingDamage.draw(spriteBatch,uiTheme,uiFont,trainingTarget,player);
         spriteBatch.end();
         uiViewport.apply();
         spriteBatch.setProjectionMatrix(uiCamera.combined);
@@ -1431,10 +1444,12 @@ public class Main extends ApplicationAdapter {
     private void drawPlatformTiles() {
         TerrainTile tile = terrainTiles.get(platformTileTexture);
         for (Rectangle platform : platforms) {
+            boolean fragile=false;for(WorldGimmicks.Bridge bridge:gimmicks.bridges)if(bridge.bounds==platform){fragile=true;break;}
+            if(fragile)continue;
             float top = platform.y + platform.height;
             float endX = platform.x + platform.width;
             for (float tileX = platform.x; tileX < endX; tileX += PLATFORM_TILE_WIDTH) {
-                tile.draw(spriteBatch, tileX, top, Math.min(PLATFORM_TILE_WIDTH, endX - tileX), PLATFORM_TILE_HEIGHT);
+                tile.drawSpan(spriteBatch, tileX, top, PLATFORM_TILE_WIDTH,Math.min(PLATFORM_TILE_WIDTH, endX - tileX), PLATFORM_TILE_HEIGHT);
             }
         }
         spriteBatch.normal();
@@ -1531,18 +1546,8 @@ public class Main extends ApplicationAdapter {
 
     }
 
-    private float tutorialPanelLeft(){
-        if(currentStage!=STAGE_TUTORIAL||camera.position.y>=StageLayout.bottom(currentStage)+VIEW_HEIGHT/2-.5f)return screenLeft();
-        Rectangle ink=player.getVisualBounds();
-        float x=ink.x-camera.position.x+VIEW_WIDTH/2,y=ink.y-camera.position.y+VIEW_HEIGHT/2;
-        Rectangle panel=JourneyView.tutorialBounds(screenLeft());
-        if(x<panel.x+panel.width&&x+ink.width>panel.x&&y<panel.y+panel.height&&y+ink.height>panel.y)
-            return screenLeft()+VIEW_WIDTH-(panel.x-screenLeft())-panel.width-12;
-        return screenLeft();
-    }
-    private float tutorialPanelOffsetY(){
-        return currentStage==STAGE_TUTORIAL&&options.on(GameSettings.Option.PLAYER_STATS)&&tutorialPanelLeft()>screenLeft()?-122:0;
-    }
+    private float tutorialPanelLeft(){return screenLeft();}
+    private float tutorialPanelOffsetY(){return 0;}
 
     private float merchantX() {
 
@@ -1643,6 +1648,13 @@ public class Main extends ApplicationAdapter {
 
         }
 
+        if(shopPointerX!=Gdx.input.getX()||shopPointerY!=Gdx.input.getY()){
+            shopPointerX=Gdx.input.getX();shopPointerY=Gdx.input.getY();
+            for(int row=0;row<5;row++)if(isMouseInside(buyBounds(row)))shopSelection=row;
+        }
+        if(Gdx.input.isKeyJustPressed(Input.Keys.UP)||Gdx.input.isKeyJustPressed(Input.Keys.W))shopSelection=Math.floorMod(shopSelection-1,5);
+        if(Gdx.input.isKeyJustPressed(Input.Keys.DOWN)||Gdx.input.isKeyJustPressed(Input.Keys.S))shopSelection=(shopSelection+1)%5;
+        if(Gdx.input.isKeyJustPressed(Input.Keys.ENTER)||Gdx.input.isKeyJustPressed(Input.Keys.SPACE)){purchase(shopSelection);return;}
         if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) return;
 
         if (isMouseInside(closeBounds())) {
@@ -1654,11 +1666,11 @@ public class Main extends ApplicationAdapter {
 
         }
 
-        for (int row = 0; row < 4; row++) {
+        for (int row = 0; row < 5; row++) {
 
             if (isMouseInside(buyBounds(row))) {
 
-                purchase(row);
+                shopSelection=row;purchase(row);
 
                 return;
 
@@ -1681,6 +1693,7 @@ public class Main extends ApplicationAdapter {
             case 2: price = HEAL_POTION_PRICE; break;
 
             case 3: price = ATTACK_POTION_PRICE; break;
+            case 4: price = ATTACK_POTION_PRICE; break;
 
             default: return;
 
@@ -1728,6 +1741,7 @@ public class Main extends ApplicationAdapter {
 
                 break;
 
+            case 4: speedPotions++;break;
             default: break;
 
         }
@@ -1735,7 +1749,7 @@ public class Main extends ApplicationAdapter {
         shopMessageSuccess = true;
         shopLastPurchase = row;
         showShopMessage(new String[]{"공격력을 강화했습니다.", "체력을 강화했습니다.",
-                "회복 포션을 구매했습니다.", "공격력 포션을 구매했습니다."}[row]);
+                "회복 포션을 구매했습니다.", "공격력 포션을 구매했습니다.","신속 포션을 구매했습니다."}[row]);
 
     }
 
@@ -1747,7 +1761,7 @@ public class Main extends ApplicationAdapter {
         int before = player.getHealth();
         if (player.heal(GameBalance.healing(player.getMaxHealth()))) {
             healPotions--;
-            feedback.action(KeyBindings.Action.HEAL);
+            feedback.action(KeyBindings.Action.HEAL);player.showHealingAura();
             runStats.potion();
             showInventoryMessage("회복량: " + (player.getHealth() - before) + " 체력", true);
         } else showInventoryMessage("체력이 가득 차 있습니다. 포션은 소비되지 않았습니다.", false);
@@ -1759,6 +1773,12 @@ public class Main extends ApplicationAdapter {
         inventoryMessageTimer = 3f;
     }
 
+    private void useHastePotion(){
+        if(speedPotions<=0){showInventoryMessage("신속 포션이 없습니다.",false);return;}
+        if(!player.isAlive())return;
+        speedPotions--;runStats.potion();player.drinkHastePotion();feedback.action(KeyBindings.Action.HASTE);
+        showInventoryMessage("이동속도 +50% / 10초",true);
+    }
     private void useAttackPotion() {
         if (attackPotions <= 0) {
             showInventoryMessage("공격력 포션이 없습니다. 상점에서 구매하세요.", false);
@@ -1767,7 +1787,7 @@ public class Main extends ApplicationAdapter {
             runStats.potion();
             player.drinkAttackPotion();
             feedback.action(KeyBindings.Action.POWER);
-            showInventoryMessage("공격력 +" + GameBalance.POWER_BONUS + " / 지속 시간 "
+            showInventoryMessage("공격력 +100% / 지속 시간 "
                     + (int)GameBalance.POWER_DURATION + "초", true);
         }
     }
@@ -1785,6 +1805,7 @@ public class Main extends ApplicationAdapter {
         }
         if (KeyBindings.justPressed(KeyBindings.Action.HEAL)) useHealPotion();
         if (KeyBindings.justPressed(KeyBindings.Action.POWER)) useAttackPotion();
+        if (KeyBindings.justPressed(KeyBindings.Action.HASTE)) useHastePotion();
         if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) return;
         if (isMouseInside(InventoryView.closeBounds(screenLeft()))) {
             inventoryOpen = false;
@@ -1792,13 +1813,14 @@ public class Main extends ApplicationAdapter {
             player.clearActionInput();
         } else if (isMouseInside(inventoryUseBounds(0))) useHealPotion();
         else if (isMouseInside(inventoryUseBounds(1))) useAttackPotion();
+        else if(isMouseInside(inventoryUseBounds(2)))useHastePotion();
     }
 
     private void drawInventory() {
         int hovered = -1;
-        for (int row = 0; row < 2; row++) if (isMouseInside(inventoryUseBounds(row))) hovered = row;
-        inventoryView.draw(spriteBatch, uiFont, screenLeft(), player, healPotions, attackPotions,
-                healPotionIcon, attackPotionIcon, hovered, Gdx.input.isButtonPressed(Input.Buttons.LEFT),
+        for (int row = 0; row < 3; row++) if (isMouseInside(inventoryUseBounds(row))) hovered = row;
+        inventoryView.draw(spriteBatch, uiFont, screenLeft(), player, healPotions, attackPotions,speedPotions,
+                healPotionIcon, attackPotionIcon,speedPotionIcon, hovered, Gdx.input.isButtonPressed(Input.Buttons.LEFT),
                 isMouseInside(InventoryView.closeBounds(screenLeft())),
                 inventoryMessageTimer > 0 ? inventoryMessage : "", inventoryMessageSuccess);
     }
@@ -1811,7 +1833,7 @@ public class Main extends ApplicationAdapter {
         gameHud.pointer(isMouseInside(GameHud.pauseBounds(screenLeft())),
                 isMouseInside(GameHud.inventoryBounds(screenLeft())),Gdx.input.isButtonPressed(Input.Buttons.LEFT),actionHover);
         gameHud.draw(spriteBatch, uiFont, screenLeft(), player, feedback.trailRatio(),
-                healPotions, attackPotions, gold, healPotionIcon, attackPotionIcon, goldIcon);
+                healPotions, attackPotions,speedPotions, gold, healPotionIcon, attackPotionIcon, goldIcon,speedPotionIcon);
         gameHud.drawBoss(spriteBatch, uiFont, screenLeft(), fallenGod);
         if(lamplighter!=null)lamplighter.drawHud(spriteBatch,uiTheme,uiFont,screenLeft());
         if(sideBoss!=null)sideBoss.drawHud(spriteBatch,uiTheme,uiFont,screenLeft());
@@ -1830,7 +1852,7 @@ public class Main extends ApplicationAdapter {
         if(viewingMap)PlayerStatsView.draw(spriteBatch,uiTheme,uiFont,player,PlayerStatsView.mapBounds(),false);
         else if(options.on(GameSettings.Option.PLAYER_STATS)){
             int hover=-1;
-            for(int i=0;i<6;i++)if(isMouseInside(PlayerStatsView.hudCell(i)))hover=i;
+            for(int i=0;i<5;i++)if(isMouseInside(PlayerStatsView.hudCell(i)))hover=i;
             PlayerStatsView.draw(spriteBatch,uiTheme,uiFont,player,PlayerStatsView.hudBounds(),true,hover);
         }
         if(options.on(GameSettings.Option.SHOW_FPS))uiTheme.text(spriteBatch,uiFont,Gdx.graphics.getFramesPerSecond()+" FPS",178,26,.6f,UiTheme.MUTED,90);
@@ -1848,13 +1870,13 @@ public class Main extends ApplicationAdapter {
 
     private void drawShop() {
         int hovered = -1;
-        for (int row = 0; row < 4; row++) {
+        for (int row = 0; row < 5; row++) {
             if (isMouseInside(buyBounds(row))) hovered = row;
         }
         shopView.draw(spriteBatch, uiFont, screenLeft(), goldIcon,
-                new Texture[]{attackUpgradeIcon, healthUpgradeIcon, healPotionIcon, attackPotionIcon},
-                gold, new int[]{ATTACK_PRICE, HEALTH_PRICE, HEAL_POTION_PRICE, ATTACK_POTION_PRICE},
-                new int[]{attackLevels, healthLevels, healPotions, attackPotions}, hovered,
+                new Texture[]{attackUpgradeIcon, healthUpgradeIcon, healPotionIcon, attackPotionIcon,speedPotionIcon},
+                gold, new int[]{ATTACK_PRICE, HEALTH_PRICE, HEAL_POTION_PRICE, ATTACK_POTION_PRICE,ATTACK_POTION_PRICE},
+                new int[]{attackLevels, healthLevels, healPotions, attackPotions,speedPotions}, shopSelection,
                 Gdx.input.isButtonPressed(Input.Buttons.LEFT), isMouseInside(closeBounds()),
                 shopMessage, shopMessageSuccess, shopLastPurchase, shopMessageTimer,
                 player.getAttackDamage(), player.getMaxHealth(), player.getHealth(), player.getAttackPotionTimer() > 0 ? 1 : 0);
@@ -1879,7 +1901,7 @@ public class Main extends ApplicationAdapter {
         if (menuPage == MenuPage.MAIN) {
             for(int row=0;row<4;row++)if(isMouseInside(mainMenuButtonBounds(row))){lobbySelection=row;applyLobbyAction(row);break;}
         } else if (menuPage == MenuPage.STAGE_SELECT) {
-            for (int row = 0; row < 4; row++) {
+            for (int row = 0; row < 5; row++) {
                 if (isMouseInside(subMenuButtonBounds(row))) { startStage(row + 1); return; }
             }
             if (isMouseInside(subMenuButtonBounds(4))) menuPage = MenuPage.MAIN;
@@ -2036,7 +2058,7 @@ public class Main extends ApplicationAdapter {
         uiTheme.text(spriteBatch, uiFont, "지역 선택", left + 55, 328, 1.15f, UiTheme.TEXT, 260);
         uiTheme.text(spriteBatch, uiFont, "연습할 지역을 선택하세요.", left + 55, 296, .65f, UiTheme.MUTED, 260);
         String[] names = {"신록의 폐허", "성벽", "잿빛 전장", "여신의 교회"};
-        for (int row = 0; row < 4; row++) {
+        for (int row = 0; row < 5; row++) {
             if (isMouseInside(subMenuButtonBounds(row))) previewStage = row + 1;
             drawMenuButton(subMenuButtonBounds(row), "0" + (row + 1) + "  " + names[row]);
         }
@@ -2056,7 +2078,7 @@ public class Main extends ApplicationAdapter {
         String[] focus = {"순례자의 선택 시련 / 가면 나방", "등불지기 / 기사와 등불 사수",
                 "봉합자의 선택 시련 / 낙하 바늘", "일식의 처형자 / 대검 4패턴"};
         uiTheme.text(spriteBatch, uiFont, focus[index], left + 314, 95, .65f, UiTheme.MUTED, 282);
-        uiTheme.text(spriteBatch, uiFont, "기본 능력치로 새로 시작합니다.", left + 314, 70, .6f, UiTheme.GOLD, 282);
+        uiTheme.text(spriteBatch, uiFont, "해당 지역의 권장 강화 상태로 시작합니다.", left + 314, 70, .6f, UiTheme.GOLD, 282);
         ClearRecords.Summary record = clearRecords.read(previewStage);
         uiTheme.text(spriteBatch, uiFont, record.exists() ? "최고 기록 " + JourneyView.time(record.bestSeconds())
                 + " / 클리어 " + record.clears() : "이 지역에서 시작한 클리어 기록이 없습니다.",
@@ -2260,6 +2282,7 @@ public class Main extends ApplicationAdapter {
         if (healPotionIcon != null) healPotionIcon.dispose();
 
         if (attackPotionIcon != null) attackPotionIcon.dispose();
+        if(speedPotionIcon!=null)speedPotionIcon.dispose();
 
         if (mainMenuBackgroundTexture != null) mainMenuBackgroundTexture.dispose();
 

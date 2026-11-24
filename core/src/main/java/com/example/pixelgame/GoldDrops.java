@@ -55,19 +55,19 @@ final class GoldDrops {
         boolean gentle=GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS);
         for(Drop d:drops){
             float glow=d.flying?.16f:.07f;
-            if(!gentle)for(int n=2;n>0;n--)ui.diamond(b,d.x,d.y,6+n*3,GOLD,glow/n);
+            if(!gentle)for(int n=2;n>0;n--)ui.diamond(b,d.x,d.y,9+n*4,GOLD,glow/n);
             int coins=d.amount>=30?3:2;
             for(int c=0;c<coins;c++){
-                float x=d.x+(c-(coins-1)/2f)*4,y=d.y+c%2*2;
-                float w=gentle?4:2.5f+Math.abs(MathUtils.sin(d.age*8+c))*2;
+                float x=d.x+(c-(coins-1)/2f)*7,y=d.y+c%2*3;
+                float w=gentle?7:4.5f+Math.abs(MathUtils.sin(d.age*8+c))*3;
                 for(int n=0;n<16;n++){
                     float a=n*22.5f,e=(n+1)*22.5f;
-                    ui.triangle(b,x,y,x+MathUtils.cosDeg(a)*(w+1),y+MathUtils.sinDeg(a)*4.5f,
-                            x+MathUtils.cosDeg(e)*(w+1),y+MathUtils.sinDeg(e)*4.5f,UiTheme.SURFACE,1);
-                    ui.triangle(b,x,y,x+MathUtils.cosDeg(a)*w,y+MathUtils.sinDeg(a)*3.5f,
-                            x+MathUtils.cosDeg(e)*w,y+MathUtils.sinDeg(e)*3.5f,GOLD,1);
+                    ui.triangle(b,x,y,x+MathUtils.cosDeg(a)*(w+1),y+MathUtils.sinDeg(a)*7f,
+                            x+MathUtils.cosDeg(e)*(w+1),y+MathUtils.sinDeg(e)*7f,UiTheme.SURFACE,1);
+                    ui.triangle(b,x,y,x+MathUtils.cosDeg(a)*w,y+MathUtils.sinDeg(a)*6f,
+                            x+MathUtils.cosDeg(e)*w,y+MathUtils.sinDeg(e)*6f,GOLD,1);
                 }
-                ui.line(b,x,y-2,x,y+2,.8f,UiTheme.TEXT,.85f);
+                ui.line(b,x,y-3.5f,x,y+3.5f,.8f,UiTheme.TEXT,.85f);
             }
         }
     }

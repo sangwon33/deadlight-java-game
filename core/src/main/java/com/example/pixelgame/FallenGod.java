@@ -12,7 +12,7 @@ public final class FallenGod {
     public FallenGod(float x,float floor,float worldWidth){combat=new Executioner(x,floor,worldWidth);healthTrail.reset(1);}
     public float getHealthTrail(){return healthTrail.value();}
     public int getHealth(){return combat.health();}
-    public int getMaxHealth(){return GameBalance.BOSS_HEALTH;}
+    public int getMaxHealth(){return combat.maxHealth();}
     public float getCenterX(){return combat.cx();}
     public Rectangle getBounds(){return new Rectangle(combat.body);}
     public Rectangle getAttackBounds(){return combat.attackBounds();}

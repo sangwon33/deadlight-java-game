@@ -20,12 +20,32 @@ final class StageScenery implements AutoCloseable {
                 props.draw(b,frame,frame,x,y,height,true);
             }
         }
-        b.setColor(.36f,.43f,.51f,.62f);
-        for(Rectangle platform:StageLayout.platforms(stage)){
+        // Balconies sit on masonry columns/corbels anchored to actual lower surfaces.
+        // These remain background decoration, so one-way traversal stays unchanged.
+        b.setColor(.48f,.55f,.61f,.76f);
+        java.util.List<Rectangle> floors=StageLayout.floors(stage),ledges=StageLayout.platforms(stage);
+        for(Rectangle platform:ledges){
             if(platform.y<80||Math.abs(platform.x+platform.width/2-cameraX)>450)continue;
-            float depth=Math.min(190,Math.max(65,platform.y-20));
-            if((int)platform.x%3==0){float chain=Math.min(depth,platform.width*.85f);world.draw(b,6,6,platform.x+platform.width/2,platform.y+18-chain,chain,true);}
-            else for(float px:new float[]{platform.x+7,platform.x+platform.width-23})stone.draw(b,px,platform.y,15,depth);
+            for(float px:new float[]{platform.x+12,platform.x+platform.width-26}){
+                float base=StageLayout.bottom(stage),top=platform.y;
+                for(Rectangle r:floors)if(px>=r.x&&px+14<=r.x+r.width&&r.y+r.height<top)base=Math.max(base,r.y+r.height);
+                for(Rectangle r:ledges)if(r!=platform&&px>=r.x&&px+14<=r.x+r.width&&r.y+r.height<top)base=Math.max(base,r.y+r.height);
+                // Short repeats preserve stone grain instead of stretching one long texture.
+                if(top-base<165){
+                    for(float y=top;y>base;y-=30)stone.draw(b,px,y,14,Math.min(30,y-base));
+                    ui.line(b,px,base,px,top,.7f,UiTheme.BORDER,.35f);
+                }else{
+                    float anchor=StageLayout.top(stage);
+                    for(Rectangle r:ledges)if(r!=platform&&px+7>=r.x&&px+7<=r.x+r.width&&r.y>top)anchor=Math.min(anchor,r.y);
+                    for(Rectangle r:floors)if(px+7>=r.x&&px+7<=r.x+r.width&&r.y>top)anchor=Math.min(anchor,r.y);
+                    for(float cy=top+8;cy<anchor;cy+=8){
+                        ui.line(b,px+6,cy,px+6,cy+5,1.5f,UiTheme.SURFACE,.7f);
+                        ui.line(b,px+7,cy+1,px+7,cy+6,.65f,UiTheme.BORDER,.5f);
+                    }
+                }
+                ui.triangle(b,px-7,top,px+21,top,px+7,top-20,UiTheme.BORDER,.37f);
+
+            }
         }
         i=0;
         b.setColor(.59f,.68f,.76f,.57f);

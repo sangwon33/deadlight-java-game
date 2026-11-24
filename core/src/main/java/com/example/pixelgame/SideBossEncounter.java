@@ -18,8 +18,8 @@ final class SideBossEncounter implements AutoCloseable {
     }
     private SideBossSprites art(){if(sprites==null)sprites=new SideBossSprites(arena);return sprites;}
     boolean tryStart(Player p){if(!p.isAlive()||!boss.start(p.getBounds(),p.isGrounded()))return false;gate.width=20;p.clearActionInput();return true;}
-    void update(float dt,Player p){healthTrail.update(dt,(float)boss.health()/arena.health());boss.update(dt,p.getBounds(),p.isAlive());if(boss.takeHit())p.takeDamage(boss.attackDamage(),boss.hitOrigin());if(boss.defeated())gate.width=0;}
-    int hit(Rectangle strike,int amount){int dealt=strike.overlaps(boss.body)?boss.damage(amount):0;healthTrail.health((float)boss.health()/arena.health());if(boss.defeated())gate.width=0;return dealt;}
+    void update(float dt,Player p){healthTrail.update(dt,(float)boss.health()/boss.maxHealth());boss.update(dt,p.getBounds(),p.isAlive());if(boss.takeHit())p.takeDamage(boss.attackDamage(),boss.hitOrigin());if(boss.defeated())gate.width=0;}
+    int hit(Rectangle strike,int amount){int dealt=strike.overlaps(boss.body)?boss.damage(amount):0;healthTrail.health((float)boss.health()/boss.maxHealth());if(boss.defeated())gate.width=0;return dealt;}
     void drawRoom(SpriteBatch b,UiTheme ui,BitmapFont font,Player p,TerrainTile stone){
         if(p.getY()<arena.floor()-300||p.getX()<arena.x()-500||p.getX()>arena.x()+1400)return;
         float floor=arena.floor(),height=arena.roof()-floor;
@@ -47,7 +47,7 @@ final class SideBossEncounter implements AutoCloseable {
     void drawEffects(SpriteBatch b){if(sprites!=null)art().effects(b,boss);}
     void drawHud(SpriteBatch b,UiTheme ui,BitmapFont f,float left){
         if(!boss.active())return;
-        GameHud.bossBar(b,f,ui,left,arena.name()+(boss.enraged()?" · 격화":""),boss.health(),arena.health(),healthTrail.value());
+        GameHud.bossBar(b,f,ui,left,arena.name()+(boss.enraged()?" · 격화":""),boss.health(),boss.maxHealth(),healthTrail.value());
     }
     @Override public void close(){if(sprites!=null){sprites.close();sprites=null;}}
 }

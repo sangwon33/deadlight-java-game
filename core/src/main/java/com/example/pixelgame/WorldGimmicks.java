@@ -14,7 +14,7 @@ final class WorldGimmicks implements AutoCloseable {
     private static final Color CREVICE = new Color(.055f, .075f, .09f, 1);
     private static final Color STONE = new Color(.32f, .39f, .43f, 1);
     private static final Color PALE_STONE = new Color(.76f, .79f, .78f, 1);
-    private static final Color MIST = new Color(.6f, .76f, .79f, 1);
+    private static final Color MIST = new Color(.36f,.90f,.61f,1);
     private static final Color HEAT = new Color(.97f, .82f, .63f, 1);
     private static final Color EDGE = new Color(.91f, .93f, .88f, 1);
     private static final Color STEAM = new Color(.75f, .65f, .55f, 1);
@@ -100,18 +100,21 @@ final class WorldGimmicks implements AutoCloseable {
     }
     boolean takeHealedNotice(){boolean value=healedNotice;healedNotice=false;return value;}
     void draw(SpriteBatch batch, UiTheme ui, TerrainTile stone, MoonAtlas world) {
-        for (Bridge bridge : bridges) drawBridge(batch, ui, bridge);
-        for (Jet jet : jets) drawJet(batch, ui, world, jet);
-        for (Rectangle spike : spikes) drawSpikes(batch, ui, stone, spike);
+        for (Bridge bridge : bridges){role(batch,false);drawBridge(batch, ui, bridge);normal(batch);}
+        for (Jet jet : jets){role(batch,false);drawJet(batch, ui, world, jet);normal(batch);}
+        for (Rectangle spike : spikes){role(batch,false);drawSpikes(batch, ui, stone, spike);normal(batch);}
         for (Well well : wells) {
             float packed = batch.getPackedColor();
             batch.setColor(1, 1, 1, well.used ? .46f : 1);
-            world.draw(batch, 5, 5, well.x, well.floor, 44, true);
+            if(!well.used)role(batch,true);world.draw(batch, 5, 5, well.x, well.floor, 44, true);normal(batch);
             batch.setPackedColor(packed);
         }
         for (Lift lift : lifts) drawLift(batch, ui, lift);
         for (Wind wind : winds) drawWind(batch, ui, stone, wind);
     }
+
+    private void role(SpriteBatch b,boolean good){if(b instanceof ReadabilityBatch r)r.roleOutline(good);}
+    private void normal(SpriteBatch b){if(b instanceof ReadabilityBatch r)r.normal();}
 
     /** World hints stay above supplies, with the same lettering as the other region hints. */
     void drawLabels(SpriteBatch batch, UiTheme ui, BitmapFont font, Player player) {
@@ -154,6 +157,7 @@ final class WorldGimmicks implements AutoCloseable {
         }
         float progress=Math.min(1,bridge.stress/BRIDGE_COLLAPSE_DELAY);
         art().bridge(batch,progress>.12f?1:0,x,top,bridge.width);
+        ui.line(batch,x+2,top,x+bridge.width-2,top,1.2f,Color.SALMON,.9f);
         if(progress>.1f)for(int i=0;i<5;i++){
             float px=x+12+i*(bridge.width-24)/4;
             float fall=gentle()?7:(time*35+i*11)%27;
@@ -164,6 +168,7 @@ final class WorldGimmicks implements AutoCloseable {
     private void drawJet(SpriteBatch batch, UiTheme ui, MoonAtlas world, Jet jet) {
         int state=jet.active()?2:jet.warning()?1:jet.phase>=Jet.ACTIVE_END&&jet.phase<Jet.ACTIVE_END+.4f?3:0;
         art().vent(batch,state,jet.x,jet.floor);
+        ui.line(batch,jet.x-23,jet.floor+1,jet.x+23,jet.floor+1,1.5f,Color.SALMON,.95f);
         if(!jet.warning()&&!jet.active())return;
         Rectangle area=jet.bounds();boolean active=jet.active();
         // Quiet full-width ash marks the real hit footprint without outlining a rectangle.

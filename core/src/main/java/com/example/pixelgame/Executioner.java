@@ -11,15 +11,17 @@ final class Executioner {
     private Phase phase=Phase.IDLE;
     private Attack attack=Attack.SWEEP;
     private float timer=1.05f,time,invincible,flash,deathTime,windupDuration,strikeDuration,impact,impactX;
-    private int health=GameBalance.BOSS_HEALTH,cycle;
+    private final int maxHealth=ProgressionBalance.enemyHealth(4,GameBalance.BOSS_HEALTH);
+    private int health=maxHealth,cycle;
     private boolean right=false,moving,attackHit,pendingHit;
     private float hitOrigin;
     Executioner(float x,float floor,float width){this.width=width;this.floor=floor;body=new Rectangle(x,floor,58,124);body.x=clamp(x);}
     Phase phase(){return phase;}
     Attack attack(){return attack;}
     int health(){return health;}
+    int maxHealth(){return maxHealth;}
     boolean alive(){return health>0;}
-    boolean enraged(){return health>0&&health<=GameBalance.BOSS_HEALTH/2;}
+    boolean enraged(){return health>0&&health<=maxHealth/2;}
     boolean defeatedComplete(){return !alive()&&deathTime>=1.05f;}
     boolean right(){return right;}
     float cx(){return body.x+body.width/2;}
@@ -34,7 +36,7 @@ final class Executioner {
     boolean striking(){return phase==Phase.STRIKE;}
     float cueProgress(){return windupDuration>0?Math.max(0,Math.min(1,1-timer/windupDuration)):0;}
     float recoveryProgress(){return recovering()?Math.max(0,Math.min(1,timer/recoveryDuration())):0;}
-    int attackDamage(){return enraged()?28:24;}
+    int attackDamage(){return ProgressionBalance.enemyDamage(4,enraged()?28:24);}
     float strikeProgress(){return striking()?Math.max(0,Math.min(1,1-timer/strikeDuration)):0;}
     int frame(){
         if(phase==Phase.DEFEAT)return 7;

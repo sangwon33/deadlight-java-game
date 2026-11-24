@@ -26,10 +26,13 @@ final class HazardSprites implements AutoCloseable {
         b.draw(spikes,x-width*7/294,floor-height*26/112,width*310/294,height*146/112);
     }
     void bridge(SpriteBatch b,int frame,float x,float top,float width){
-        // The top remains exactly at collision height for intact, cracking and broken states.
-        float scaleY=18f/84;
-        b.draw(slab[frame],x-width*10/324,top-(418-263)*scaleY,
-                width*344/324,166*scaleY);
+        // Repeat fixed-aspect masonry; crop the final segment rather than stretching a slab.
+        float scale=18f/84,natural=324*scale;
+        for(float offset=0;offset<width-.01f;offset+=natural){
+            float visible=Math.min(natural,width-offset);
+            TextureRegion piece=new TextureRegion(slab[frame],0,0,Math.min(344,Math.round(visible/scale)+20),166);
+            b.draw(piece,x+offset-10*scale,top-155*scale,piece.getRegionWidth()*scale,166*scale);
+        }
     }
     @Override public void close(){texture.dispose();}
 }

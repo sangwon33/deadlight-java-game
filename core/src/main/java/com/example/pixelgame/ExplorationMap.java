@@ -55,11 +55,11 @@ final class ExplorationMap {
     }
     void draw(SpriteBatch b,UiTheme ui,BitmapFont f,int stage,Player p,WorldGimmicks mechanisms,RegionGuide guide,LamplighterEncounter lamp,SideBossEncounter side,boolean mini){
         if(stage<1||stage>3)return;
-        Rectangle panel=mini?(GameSettings.current.on(GameSettings.Option.PLAYER_STATS)?PlayerStatsView.minimapBounds():new Rectangle(526,229,102,68)):fullBounds();
+        Rectangle panel=mini?PlayerStatsView.minimapBounds():fullBounds();
         if(!mini)ui.rect(b,0,0,640,360,UiTheme.SURFACE,.97f);
         ui.rect(b,panel.x,panel.y,panel.width,panel.height,UiTheme.SURFACE,1);
         ui.panel(b,panel.x,panel.y,panel.width,panel.height);
-        if(mini)ui.centered(b,f,"Tab 지도",new Rectangle(panel.x+4,panel.y+50,94,16),.61f,UiTheme.TEXT);
+        if(mini)ui.centered(b,f,"Tab 지도",new Rectangle(panel.x+4,panel.y+57,panel.width-8,16),.61f,UiTheme.TEXT);
         else{
             ui.diamond(b,panel.x+23,300,6,UiTheme.GOLD,.9f);
             ui.text(b,f,StageLayout.name(stage),panel.x+38,313,1.05f,UiTheme.TEXT,panel.width-125);
@@ -68,18 +68,18 @@ final class ExplorationMap {
             ui.text(b,f,"0"+stage+" / 03",panel.x+panel.width-72,307,.72f,UiTheme.GOLD,60);
             for(float x:new float[]{panel.x+10,panel.x+panel.width-10})for(float y:new float[]{52,318})ui.diamond(b,x,y,3,UiTheme.GOLD,.9f);
         }
-        Rectangle plot=mini?new Rectangle(panel.x+6,panel.y+6,90,40):new Rectangle(panel.x+22,112,panel.width-44,156);
+        Rectangle plot=mini?new Rectangle(panel.x+7,panel.y+7,panel.width-14,46):new Rectangle(panel.x+22,112,panel.width-44,156);
         Rectangle v=view(stage,p,mini);
         float scale=Math.min(plot.width/v.width,plot.height/v.height);
         float ox=plot.x+(plot.width-v.width*scale)/2,oy=plot.y+(plot.height-v.height*scale)/2;
         ui.rect(b,plot.x,plot.y,plot.width,plot.height,new Color(.025f,.047f,.072f,1),1);
-        if(!mini){
+        {
             for(float x=plot.x;x<=plot.x+plot.width;x+=30)ui.line(b,x,plot.y,x,plot.y+plot.height,.5f,UiTheme.BORDER,.25f);
             for(float y=plot.y;y<=plot.y+plot.height;y+=20)ui.line(b,plot.x,y,plot.x+plot.width,y,.5f,UiTheme.BORDER,.25f);
-            float cx=plot.x+plot.width-22,cy=242;
+            if(!mini){float cx=plot.x+plot.width-22,cy=plot.y+plot.height-22;
             for(int i=0;i<8;i++){float a=i*45*(float)Math.PI/180;ui.line(b,cx,cy,cx+(float)Math.cos(a)*14,cy+(float)Math.sin(a)*14,.55f,UiTheme.GOLD,.45f);}
-            ui.diamond(b,cx,cy,5,UiTheme.GOLD,.5f);
-            ui.triangle(b,cx-2,cy+8,cx,cy+19,cx+2,cy+8,UiTheme.GOLD,.7f);
+            if(!mini)ui.diamond(b,cx,cy,5,UiTheme.GOLD,.5f);
+            ui.triangle(b,cx-2,cy+8,cx,cy+19,cx+2,cy+8,UiTheme.GOLD,.7f);}
         }
         Grid g=regions.get(stage);
         if(g!=null)for(int bit=g.seen.nextSetBit(0);bit>=0;bit=g.seen.nextSetBit(bit+1)){
@@ -87,7 +87,7 @@ final class ExplorationMap {
             float left=Math.max(wx,v.x),right=Math.min(wx+CELL,v.x+v.width),low=Math.max(wy,v.y),high=Math.min(wy+CELL,v.y+v.height);
             if(right>left&&high>low){
                 float x=ox+(left-v.x)*scale,y=oy+(low-v.y)*scale,w=(right-left)*scale,h=(high-low)*scale;
-                ui.rect(b,x,y,w,h,UiTheme.BORDER,mini?.13f:.24f);
+                ui.rect(b,x,y,w,h,UiTheme.BORDER,mini?.30f:.24f);
                 int c=bit%g.columns,r=bit/g.columns;
                 if(!mini){
                     if(!g.has(c-1,r))ui.line(b,x,y,x,y+h,.6f,UiTheme.GOLD,.38f);
@@ -97,10 +97,10 @@ final class ExplorationMap {
                 }
             }
         }
-        for(Rectangle r:StageLayout.floors(stage))surface(b,ui,stage,r.x,r.x+r.width,r.y+r.height,v,ox,oy,scale,mini?1.3f:3,UiTheme.BORDER);
+        for(Rectangle r:StageLayout.floors(stage))surface(b,ui,stage,r.x,r.x+r.width,r.y+r.height,v,ox,oy,scale,mini?1.8f:3,UiTheme.TEXT);
         for(Rectangle r:StageLayout.platforms(stage)){
             boolean collapsed=false;for(WorldGimmicks.Bridge bridge:mechanisms.bridges)if(bridge.respawn>0&&Math.abs(bridge.bounds.x-r.x)<.1&&Math.abs(bridge.bounds.y-r.y)<.1)collapsed=true;
-            if(!collapsed)surface(b,ui,stage,r.x,r.x+r.width,r.y+r.height,v,ox,oy,scale,mini?1:2,UiTheme.GOLD);
+            if(!collapsed)surface(b,ui,stage,r.x,r.x+r.width,r.y+r.height,v,ox,oy,scale,mini?1.5f:2,UiTheme.GOLD);
         }
         for(WorldGimmicks.Lift lift:mechanisms.lifts){
             float x=lift.bounds.x+lift.bounds.width/2,regionLow=StageLayout.bottom(stage);
@@ -113,7 +113,7 @@ final class ExplorationMap {
         for(WorldGimmicks.Wind wind:mechanisms.winds)marker(b,ui,stage,wind.x,wind.floor+8,v,ox,oy,scale,mini?1.7f:3.3f,UiTheme.SUCCESS);
         for(WorldGimmicks.Jet jet:mechanisms.jets)marker(b,ui,stage,jet.x,jet.floor+8,v,ox,oy,scale,mini?1.7f:3.3f,Color.SALMON);
         for(WorldGimmicks.Well well:mechanisms.wells)marker(b,ui,stage,well.x,well.floor+8,v,ox,oy,scale,mini?1.8f:3.8f,well.used?UiTheme.MUTED:UiTheme.SUCCESS);
-        if(guide!=null)for(StageLayout.Supply supply:StageLayout.supplies(stage))if(!guide.claimed(supply.id()))marker(b,ui,stage,supply.x(),supply.floor()+8,v,ox,oy,scale,mini?1.4f:3,UiTheme.GOLD);
+        if(guide!=null)for(StageLayout.Supply supply:StageLayout.supplies(stage))if(!guide.claimed(supply.id()))marker(b,ui,stage,supply.x(),supply.floor()+8,v,ox,oy,scale,mini?2:3,UiTheme.SUCCESS);
         if(lamp!=null)trial(b,ui,f,stage,Lamplighter.RIGHT-95,Lamplighter.FLOOR+20,"등불 감시탑",lamp.boss.defeated(),v,ox,oy,scale,mini);
         if(side!=null)trial(b,ui,f,stage,side.arena.entry(),side.arena.floor()+20,side.arena.room(),side.boss.defeated(),v,ox,oy,scale,mini);
         float exit=StageLayout.width(stage)-100;
@@ -128,7 +128,7 @@ final class ExplorationMap {
         if(!mini){
             float d=p.isFacingRight()?1:-1;ui.triangle(b,px+d*8,py-2,px+d*12,py,px+d*8,py+2,UiTheme.TEXT,1);
             String[] names={"현재 위치","보급품","기믹 · 우물","위험 · 시련"};
-            Color[] colors={UiTheme.TEXT,UiTheme.GOLD,UiTheme.SUCCESS,Color.SALMON};
+            Color[] colors={UiTheme.TEXT,UiTheme.SUCCESS,UiTheme.SUCCESS,Color.SALMON};
             for(int i=0;i<4;i++){
                 float x=panel.x+26+(i%2)*178,y=91-(i/2)*18;
                 ui.diamond(b,x,y,2.8f,colors[i],1);ui.text(b,f,names[i],x+10,y+7,.63f,UiTheme.MUTED,145);

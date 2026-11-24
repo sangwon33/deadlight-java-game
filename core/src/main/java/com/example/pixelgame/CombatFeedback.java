@@ -13,7 +13,7 @@ final class CombatFeedback {
         final float x, y;
         final int damage;
         final boolean hurt;
-        boolean heavy, sword;
+        boolean heavy, sword,critical;
         float age, labelY;
         Impact(float x, float y, int damage, boolean hurt) {
             this.x = x; this.y = y; this.damage = damage; this.hurt = hurt;
@@ -28,7 +28,7 @@ final class CombatFeedback {
     private final float[] actionPulses=new float[KeyBindings.Action.values().length];
     private float goldPulse,goldNotice,pickupBurst,pickupX,pickupY;
     private int collectedGold;
-    void action(KeyBindings.Action action){actionPulses[action.ordinal()]=action==KeyBindings.Action.HEAL||action==KeyBindings.Action.POWER?.65f:.35f;}
+    void action(KeyBindings.Action action){actionPulses[action.ordinal()]=action==KeyBindings.Action.HEAL||action==KeyBindings.Action.POWER||action==KeyBindings.Action.HASTE?.65f:.35f;}
     float actionFlash(KeyBindings.Action action){return Math.min(1,actionPulses[action.ordinal()]/.35f);}
     void goldCollected(int amount,float x,float y){
         if(amount<=0)return;
@@ -83,6 +83,7 @@ final class CombatFeedback {
         stop = Math.max(stop, hurt ? .055f : heavy ? .07f : .035f);
     }
 
+    void critical(boolean value){if(!impacts.isEmpty())impacts.get(impacts.size()-1).critical=value;}
     void skillInterrupted() { interruptedNotice = 1.6f; }
     void swordHit(float x,float y,int damage,boolean heavy,float labelY){
         if(damage<=0)return;
@@ -184,6 +185,7 @@ final class CombatFeedback {
             font.draw(batch, text, x + 1, y - 1);
             font.draw(batch, text, x - 1, y + 1);
             if (impact.hurt) font.setColor(1, 0.4f, 0.35f, alpha);
+            else if(impact.critical)font.setColor(1,.19f,.22f,alpha);
             else font.setColor(1, 0.92f, 0.65f, alpha);
             font.draw(batch, text, x, y);
         }

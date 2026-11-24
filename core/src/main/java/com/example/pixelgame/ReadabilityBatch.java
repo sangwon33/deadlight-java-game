@@ -114,6 +114,23 @@ final class ReadabilityBatch extends SpriteBatch {
         if(GameSettings.current.on(GameSettings.Option.HIGH_CONTRAST))treatment.setUniformf("u_edge",player?.9f:.75f,player?.97f:.88f,1f,.95f);
     }
 
+    void playerSilhouette(Player player){
+        silhouette(true);
+        float seconds=player.getHealingAuraTimer();float r=1,g=.19f,b=.24f;
+        if(seconds<=0){seconds=player.getAttackPotionTimer();r=.69f;g=.36f;b=1;}
+        if(seconds<=0){seconds=player.getHastePotionTimer();r=.25f;g=.96f;b=.48f;}
+        if(seconds<=0)return;
+        if(GameSettings.current.on(GameSettings.Option.HIGH_CONTRAST)){r=r*.6f+.4f;g=g*.6f+.4f;b=b*.6f+.4f;}
+        float alpha=GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.55f:.95f;
+        treatment.setUniformf("u_edge",r,g,b,alpha*Math.min(1,seconds/.3f));
+    }
+
+    void roleOutline(boolean beneficial){
+        setMode(1);
+        if(beneficial)treatment.setUniformf("u_edge",.26f,.96f,.55f,.95f);
+        else treatment.setUniformf("u_edge",1f,.17f,.20f,.95f);
+    }
+
     void enemySilhouette(boolean guardian){
         silhouette(false);
         if(guardian)treatment.setUniformf("u_edge",1f,.16f,.12f,.82f);

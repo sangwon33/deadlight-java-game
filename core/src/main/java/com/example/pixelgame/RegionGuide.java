@@ -40,9 +40,11 @@ final class RegionGuide {
         float color=b.getPackedColor();b.setColor(Color.WHITE);
         for(StageLayout.Supply supply:supplies)if(!claimed.contains(supply.id())){
             int frame=supply.powers()>0?4:3;
-            world.draw(b,frame,frame,supply.x(),supply.floor()+1,frame==4?24:22,true);
+            if(b instanceof ReadabilityBatch r)r.roleOutline(true);
+            world.draw(b,frame,frame,supply.x(),supply.floor()+1,frame==4?28:26,true);
+            if(b instanceof ReadabilityBatch r)r.normal();
             if(Math.abs(p.getCenterX()-supply.x())<85&&Math.abs(p.getY()-supply.floor())<75){
-                ui.diamond(b,supply.x(),supply.floor()+31,1.8f,UiTheme.GOLD,.65f+.2f*(float)Math.sin(time*3));
+                ui.diamond(b,supply.x(),supply.floor()+31,2.5f,UiTheme.SUCCESS,.65f+.2f*(float)Math.sin(time*3));
             }
         }
         b.setPackedColor(color);

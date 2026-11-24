@@ -35,7 +35,17 @@ public class Enemy {
         collisionWidth*=1.5f;collisionHeight*=1.5f;attackRange*=1.5f;
         maxHealth=Math.round(Math.max(GameBalance.KNIGHT_HEALTH,maxHealth)*1.5f);health=maxHealth;healthTrail.reset(1);
     }
-    public int getAttackDamage(){return guardian?Math.round(GameBalance.ENEMY_DAMAGE*1.5f):GameBalance.ENEMY_DAMAGE;}
+    private int regionStage=1,unscaledHealth;
+    void scaleForStage(int stage){
+        if(trainingDummy)return;
+        regionStage=Math.max(1,Math.min(4,stage));if(unscaledHealth==0)unscaledHealth=maxHealth;
+        maxHealth=ProgressionBalance.enemyHealth(regionStage,unscaledHealth);health=maxHealth;healthTrail.reset(1);
+    }
+    public int getAttackDamage(){
+        int base=isFlying()?GameBalance.MOTH_DAMAGE:isRanged()?GameBalance.MARKSMAN_DAMAGE:GameBalance.ENEMY_DAMAGE;
+        if(guardian)base=Math.round(base*1.5f);
+        return ProgressionBalance.enemyDamage(regionStage,base);
+    }
     public void setTerritory(float left, float right) {
         if (right - left < collisionWidth) throw new IllegalArgumentException("Enemy territory");
         territoryLeft = left; territoryRight = right;
@@ -127,7 +137,7 @@ public class Enemy {
     private int lastHitDamage;
     int getLastHitDamage(){return lastHitDamage;}
     void setTrainingDummy(){
-        trainingDummy=true;collisionWidth=34;collisionHeight=70;knockbackVelocityX=0;
+        trainingDummy=true;maxHealth=health=100000;healthTrail.reset(1);collisionWidth=34;collisionHeight=70;knockbackVelocityX=0;
         if(trainingArt==null)trainingArt=MoonAtlas.acquire("art/world-props.png",4,2,.5625f);
     }
 
@@ -769,7 +779,7 @@ public class Enemy {
         marksman.update(dt,player.getBounds(),player.isAlive(),worldSolids,Math.max(0,territoryLeft),Math.min(worldWidth,territoryRight),worldWidth);
         x=marksman.body.x;y=marksman.body.y;facingRight=marksman.facingRight();
         attacking=marksman.phase()==LanternMarksman.Phase.AIM||marksman.phase()==LanternMarksman.Phase.FIRE;
-        if(marksman.takeHit())player.takeDamage(GameBalance.MARKSMAN_DAMAGE,getCenterX());
+        if(marksman.takeHit())player.takeDamage(getAttackDamage(),getCenterX());
     }
 
     private void updateMoth(float dt,Player player,float worldWidth){
@@ -781,7 +791,7 @@ public class Enemy {
         flight.update(dt,player.getBounds(),player.isAlive(),worldSolids,left,right);
         x=flight.body.x;y=flight.body.y;facingRight=flight.facingRight();
         attacking=flight.phase()==MothFlight.Phase.WINDUP||flight.phase()==MothFlight.Phase.DIVE;
-        if(flight.takeHit())player.takeDamage(GameBalance.MOTH_DAMAGE,getCenterX());
+        if(flight.takeHit())player.takeDamage(getAttackDamage(),getCenterX());
     }
 
     float getY(){return y;}
@@ -818,11 +828,7 @@ public class Enemy {
             return 0;
         }
         goldRewardClaimed = true;
-        if(isRanged())return GameBalance.MARKSMAN_GOLD;
-        if(isFlying())return GameBalance.MOTH_GOLD;
-        if (enemyType == EnemyType.KNIGHT) return 20;
-        if (enemyType == EnemyType.DARK_SLIME) return 30;
-        return 10;
+        return ProgressionBalance.reward(enemyType);
     }
 
     public boolean isAttacking() {

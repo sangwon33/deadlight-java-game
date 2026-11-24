@@ -69,7 +69,7 @@ public class Player {
     public int getCompletedFullChargeSkillCount() { return completedFullChargeSkills; }
     public boolean isSkillActive() { return usingSkill && !chargingSkill && skillElapsed >= GameBalance.SKILL_WINDUP
             && (skillElapsed <= GameBalance.SKILL_STRIKE_END + .0001f || skillRushThisFrame); }
-    public int getSkillDamage() { return GameBalance.SKILL_DAMAGE; }
+    public int getSkillDamage() { return Math.round((GameBalance.SKILL_DAMAGE+attackUpgradeLevel*3)*(attackPotionTimer>0?GameBalance.POWER_MULTIPLIER:1)); }
     public String getSkillPhase() { return chargingSkill ? "CHARGING" : skillElapsed < GameBalance.SKILL_WINDUP ? "WINDUP" : isSkillActive() ? "STRIKE" : "RECOVER"; }
     public float getSkillSweepStartX() { return skillSweepStartX; }
     public Rectangle getSkillBounds() {
@@ -126,6 +126,9 @@ public class Player {
     private final MoonAtlas moonArt;
     private final MoonAtlas lookArt;
     private HeroTransitions transitionArt;
+    private AirAttackSprites airArt;
+    private AirAttackSprites air(){if(airArt==null)airArt=new AirAttackSprites();return airArt;}
+    private int airFrame(){return Math.min(5,(int)(attackStateTime/attackDuration*6));}
     private float landingTimer;
     private float moonTime;
     private float runStateTime;
@@ -179,7 +182,18 @@ public class Player {
     private int health = maxHealth;
     private boolean alive = true;
     private int attackUpgradeLevel = 0;
-    private float attackPotionTimer = 0f;
+    private float attackPotionTimer = 0f, hastePotionTimer,healingAuraTimer;
+    float getHealingAuraTimer(){return healingAuraTimer;}
+    void showHealingAura(){healingAuraTimer=.9f;}
+    private boolean attackCritical,skillCritical;
+    private int completedCombos;
+    public int getCompletedComboCount(){return completedCombos;}
+    public boolean isAttackCritical(){return attackCritical;}
+    public boolean isSkillCritical(){return skillCritical;}
+    public int getCurrentSkillDamage(){return Math.round(getSkillDamage()*(skillCritical?getCriticalDamageMultiplier():1));}
+    public float getHastePotionTimer(){return hastePotionTimer;}
+    public void drinkHastePotion(){hastePotionTimer=GameBalance.HASTE_DURATION;}
+    public void restoreHaste(float seconds){hastePotionTimer=MathUtils.clamp(seconds,0,GameBalance.HASTE_DURATION);}
 
     // 피격 후 무적 시간
     private float invincibleTimer = 0;
@@ -241,7 +255,7 @@ public class Player {
         boolean jumpHeld=KeyBindings.pressed(KeyBindings.Action.JUMP)||screenJumpHeld;
         if(velocityY>0&&jumpWasHeld&&!jumpHeld&&!dashing&&!usingSkill)velocityY*=GameBalance.JUMP_CUT;
         jumpWasHeld=jumpHeld;
-        attackPotionTimer=Math.max(0,attackPotionTimer-deltaTime);
+        attackPotionTimer=Math.max(0,attackPotionTimer-deltaTime);hastePotionTimer=Math.max(0,hastePotionTimer-deltaTime);healingAuraTimer=Math.max(0,healingAuraTimer-deltaTime);
         updateInvincibility(deltaTime);updateHitFlash(deltaTime);updateDashCooldown(deltaTime);moving=false;
         if(!alive){cancelNormalAttack();dashing=usingSkill=false;return;}
         if(dashing&&jumpBufferTimer>0&&(onGround||coyoteTimer>0)){dashing=false;dashTimer=0;}
@@ -294,7 +308,7 @@ public class Player {
 
         if (KeyBindings.pressed(KeyBindings.Action.LEFT) || screenLeft) {
 
-            x -= moveSpeed * (groundCombo?(isComboFinisher()?0:.65f):1f) * deltaTime;
+            x -= getMoveSpeed() * (groundCombo?(isComboFinisher()?0:.65f):1f) * deltaTime;
 
 
             moving = true;
@@ -304,7 +318,7 @@ public class Player {
 
         if (KeyBindings.pressed(KeyBindings.Action.RIGHT) || screenRight) {
 
-            x += moveSpeed * (groundCombo?(isComboFinisher()?0:.65f):1f) * deltaTime;
+            x += getMoveSpeed() * (groundCombo?(isComboFinisher()?0:.65f):1f) * deltaTime;
 
 
             moving = true;
@@ -321,7 +335,7 @@ public class Player {
         if (skillInput && canUseSkill()) {
             if (direction > 0) faceRight(); else if (direction < 0) faceLeft();
             skillReadyPending=false;skillReadyFlash=0;
-            usingSkill = chargingSkill = true;
+            usingSkill = chargingSkill = true;skillCritical=MathUtils.random()<getCriticalChance();
             skillElapsed = skillChargeTime = 0; skillChargeStage = 1; skillCount++;
         }
         if (!usingSkill) return false;
@@ -385,15 +399,17 @@ public class Player {
     private void updateAttack(float deltaTime) {
         if(groundCombo){
             if(!onGround){cancelNormalAttack();return;}
-            int started=swordCombo.update(deltaTime,attackInput);attackBufferTimer=0;
-            if(started>0){attackCount+=started;faceAttackInput();}
+            int previousStep=swordCombo.step();
+            int started=swordCombo.update(deltaTime,attackInput);
+            if(previousStep==3&&!swordCombo.active())completedCombos++;attackBufferTimer=0;
+            if(started>0){attackCritical=MathUtils.random()<getCriticalChance();attackCount+=started;faceAttackInput();}
             x+=(facingRight?1:-1)*swordCombo.lunge();
             attacking=swordCombo.active();attackStateTime=swordCombo.elapsed();attackTimer=swordCombo.duration()-attackStateTime;
             if(!attacking){groundCombo=false;attackStateTime=attackTimer=0;}
             return;
         }
         if (!attacking && !dashing && attackBufferTimer > 0) {
-            faceAttackInput();
+            faceAttackInput();attackCritical=MathUtils.random()<getCriticalChance();
             if(onGround&&jumpBufferTimer<=0){
                 if(swordCombo==null)swordCombo=new SwordCombo();swordCombo.start();groundCombo=attacking=true;attackCount++;attackBufferTimer=0;
                 swordCombo.update(deltaTime,false);attackStateTime=swordCombo.elapsed();attackTimer=swordCombo.duration()-attackStateTime;return;
@@ -665,6 +681,7 @@ public class Player {
                 : !onGround ? 12 : moving ? 4 + (int)(runStateTime / .09f) % 4 : (int)(moonTime / .28f) % 4;
     }
     Rectangle getVisualBounds(){
+        if(attacking&&!groundCombo)return air().bounds(airFrame(),getCenterX(),y,facingRight,visualBounds);
         int supplemental=transitionFrame();
         if(supplemental>=0)return transitions().bounds(supplemental,getCenterX(),y,facingRight,visualBounds);
         int frame;MoonAtlas atlas;
@@ -682,7 +699,8 @@ public class Player {
         float alpha=invincibleTimer>0&&hitFlashTimer<=0?(gentle?.72f:((int)(invincibleTimer*20)%2==0)?.3f:1):1;
         batch.setColor(1,hitFlashTimer>0?(gentle?.75f:.35f):1,hitFlashTimer>0?(gentle?.75f:.4f):1,alpha);
         int supplemental=transitionFrame();
-        if(supplemental>=0)transitions().draw(batch,supplemental,getCenterX(),y,facingRight);
+        if(attacking&&!groundCombo)air().draw(batch,airFrame(),getCenterX(),y,facingRight);
+        else if(supplemental>=0)transitions().draw(batch,supplemental,getCenterX(),y,facingRight);
         else if(isLookingUp())lookArt.draw(batch,1,0,getCenterX(),y,GameBalance.character(78),facingRight);
         else if(isLookingDown())lookArt.draw(batch,2+(int)(moonTime/.6f)%2,0,getCenterX(),y,GameBalance.character(78),facingRight);
         else if(crouching)lookArt.draw(batch,2,0,getCenterX(),y,GameBalance.character(78),facingRight);
@@ -762,14 +780,14 @@ public class Player {
     }
 
     public int getAttackDamage() {
-        return GameBalance.BASE_ATTACK_DAMAGE + attackUpgradeLevel + (attackPotionTimer > 0f ? GameBalance.POWER_BONUS : 0);
+        return Math.round((GameBalance.BASE_ATTACK_DAMAGE + attackUpgradeLevel)*(attackPotionTimer>0?GameBalance.POWER_MULTIPLIER:1));
     }
-    public int getCurrentAttackDamage(){return isComboFinisher()?Math.round(getAttackDamage()*1.4f):getAttackDamage();}
-    public float getMoveSpeed(){return moveSpeed;}
+    public int getCurrentAttackDamage(){int base=isComboFinisher()?Math.round(getAttackDamage()*1.4f):getAttackDamage();return Math.round(base*(attackCritical?getCriticalDamageMultiplier():1));}
+    public float getMoveSpeed(){return moveSpeed*(hastePotionTimer>0?GameBalance.HASTE_MULTIPLIER:1);}
     public float getAttackSpeed(){return SwordCombo.attacksPerSecond();}
-    // Random critical hits are not active in the current combat rules.
-    public float getCriticalChance(){return 0f;}
-    public float getCriticalDamageMultiplier(){return 1f;}
+    // Critical is rolled once per swing/cast, shared by all targets hit by that action.
+    public float getCriticalChance(){return GameBalance.CRITICAL_CHANCE;}
+    public float getCriticalDamageMultiplier(){return GameBalance.CRITICAL_MULTIPLIER;}
 
     public float getAttackPotionTimer() {
         return attackPotionTimer;
@@ -835,6 +853,7 @@ public class Player {
     }
 
     public void dispose() {
+        if(airArt!=null)airArt.close();
         if(transitionArt!=null)transitionArt.close();
         if(comboSprites!=null)comboSprites.close();
         moonArt.close();
