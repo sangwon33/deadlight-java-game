@@ -32,7 +32,7 @@ final class PauseView implements Disposable {
             // Equal side insets keep labels on the title/footer axis while leaving room for icons.
             ui.centered(b,f,labels[i],new Rectangle(r.x+36,r.y,r.width-72,r.height),.8f,UiTheme.TEXT);
         }
-        ui.centered(b,f,pending==0?"Esc / Enter · 계속하기":"Esc · 취소    Enter · 확인",new Rectangle(left+190,61,260,16),.5f,UiTheme.MUTED);
+        ui.centered(b,f,pending==0?"↑↓ 선택 · Enter 결정 · Esc 계속":"↑↓ 선택 · Enter 결정 · Esc 취소",new Rectangle(left+190,61,260,16),.5f,UiTheme.MUTED);
     }
     @Override public void dispose(){ui.dispose();}
 }

@@ -69,7 +69,7 @@ public class Player {
     public int getCompletedFullChargeSkillCount() { return completedFullChargeSkills; }
     public boolean isSkillActive() { return usingSkill && !chargingSkill && skillElapsed >= GameBalance.SKILL_WINDUP
             && (skillElapsed <= GameBalance.SKILL_STRIKE_END + .0001f || skillRushThisFrame); }
-    public int getSkillDamage() { return Math.round((GameBalance.SKILL_DAMAGE+attackUpgradeLevel*3)*(attackPotionTimer>0?GameBalance.POWER_MULTIPLIER:1)); }
+    public int getSkillDamage() { return Math.round((GameBalance.SKILL_DAMAGE+attackUpgradeLevel*GameBalance.SKILL_UPGRADE_DAMAGE)*(attackPotionTimer>0?GameBalance.POWER_MULTIPLIER:1)); }
     public String getSkillPhase() { return chargingSkill ? "CHARGING" : skillElapsed < GameBalance.SKILL_WINDUP ? "WINDUP" : isSkillActive() ? "STRIKE" : "RECOVER"; }
     public float getSkillSweepStartX() { return skillSweepStartX; }
     public Rectangle getSkillBounds() {

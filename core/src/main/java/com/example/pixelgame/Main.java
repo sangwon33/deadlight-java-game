@@ -202,6 +202,8 @@ public class Main extends ApplicationAdapter {
     private PauseView pauseView;
     private final GameControls gameControls = new GameControls();
     private int pendingPauseAction;
+    private int pauseSelection, pauseReturnSelection;
+    private int pauseMouseX=-1, pauseMouseY=-1;
     private static final boolean DEBUG_STAGE_SKIP = Boolean.getBoolean("deadlight.debug");
     private RunResult lastResult;
     private int runDefeated, runGoldEarned;
@@ -561,51 +563,66 @@ public class Main extends ApplicationAdapter {
         cameraLook.cancelHold();
         player.clearActionInput();
         pendingPauseAction = 0;
+        pauseSelection = pauseReturnSelection = 0;
+        syncPausePointer();
         gameMode = GameMode.PAUSED;
     }
 
     private void applyPauseAction(int row) {
         if (pendingPauseAction != 0) {
-            if (row == 0) pendingPauseAction = 0;
+            if (row == 0) { pendingPauseAction = 0; pauseSelection = pauseReturnSelection; }
             else if (row == 1) {
                 int action = pendingPauseAction;
                 pendingPauseAction = 0;
                 if (action == 1) restartGame(); else returnToMainMenu();
             }
         } else if (row == 0) gameMode = GameMode.PLAYING;
-        else if (row == 1) pendingPauseAction = 1;
+        else if (row == 1) { pendingPauseAction = 1; pauseReturnSelection = row; pauseSelection = 0; }
         else if (row == 2) { settingsFromPause = true; menuPage = MenuPage.SETTINGS; gameMode = GameMode.MENU; }
-        else if (row == 3) pendingPauseAction = 2;
+        else if (row == 3) { pendingPauseAction = 2; pauseReturnSelection = row; pauseSelection = 0; }
+        syncPausePointer();
     }
 
+    private void syncPausePointer() { pauseMouseX=Gdx.input.getX(); pauseMouseY=Gdx.input.getY(); }
+
     private void updatePauseInput() {
+        int count=pendingPauseAction==0?4:2;
+        int mx=Gdx.input.getX(),my=Gdx.input.getY();
+        // A stationary cursor must not override the current keyboard selection.
+        if(mx!=pauseMouseX||my!=pauseMouseY){
+            for(int row=0;row<count;row++)if(isMouseInside(PauseView.buttonBounds(screenLeft(),row)))pauseSelection=row;
+            syncPausePointer();
+        }
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            if (pendingPauseAction != 0) pendingPauseAction = 0;
+            if (pendingPauseAction != 0) applyPauseAction(0);
             else gameMode = GameMode.PLAYING;
             return;
         }
+        boolean previous=Gdx.input.isKeyJustPressed(Input.Keys.UP)||Gdx.input.isKeyJustPressed(Input.Keys.W)
+                ||pendingPauseAction!=0&&Gdx.input.isKeyJustPressed(Input.Keys.LEFT);
+        boolean next=Gdx.input.isKeyJustPressed(Input.Keys.DOWN)||Gdx.input.isKeyJustPressed(Input.Keys.S)
+                ||pendingPauseAction!=0&&Gdx.input.isKeyJustPressed(Input.Keys.RIGHT);
+        if(previous)pauseSelection=Math.floorMod(pauseSelection-1,count);
+        if(next)pauseSelection=(pauseSelection+1)%count;
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-            applyPauseAction(pendingPauseAction == 0 ? 0 : 1);
+            applyPauseAction(pauseSelection);
             return;
         }
         if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) return;
-        for (int row = 0; row < (pendingPauseAction == 0 ? 4 : 2); row++) {
+        for (int row = 0; row < count; row++) {
             if (isMouseInside(PauseView.buttonBounds(screenLeft(), row))) {
+                pauseSelection=row;
                 applyPauseAction(row); return;
             }
         }
     }
 
     private void drawPause() {
-        int hovered = -1;
-        for (int row = 0; row < (pendingPauseAction == 0 ? 4 : 2); row++) {
-            if (isMouseInside(PauseView.buttonBounds(screenLeft(), row))) hovered = row;
-        }
         uiViewport.apply();
         spriteBatch.setProjectionMatrix(uiCamera.combined);
         spriteBatch.begin();
-        pauseView.draw(spriteBatch, uiFont, screenLeft(), pendingPauseAction, hovered,
-                Gdx.input.isButtonPressed(Input.Buttons.LEFT));
+        pauseView.draw(spriteBatch, uiFont, screenLeft(), pendingPauseAction, pauseSelection,
+                Gdx.input.isButtonPressed(Input.Buttons.LEFT)&&isMouseInside(PauseView.buttonBounds(screenLeft(),pauseSelection)));
         spriteBatch.end();
     }
 
@@ -929,6 +946,7 @@ public class Main extends ApplicationAdapter {
         runGoldEarned = 0;
         stageTransition.reset();
         pendingPauseAction = 0;
+        pauseSelection = pauseReturnSelection = 0;
         pendingStage = 0;
         pendingStageMessage = null;
         feedback.reset(1f);
@@ -1901,16 +1919,16 @@ public class Main extends ApplicationAdapter {
         if (menuPage == MenuPage.MAIN) {
             for(int row=0;row<4;row++)if(isMouseInside(mainMenuButtonBounds(row))){lobbySelection=row;applyLobbyAction(row);break;}
         } else if (menuPage == MenuPage.STAGE_SELECT) {
-            for (int row = 0; row < 5; row++) {
+            for (int row = 0; row < STAGE_GODDESS_CHURCH; row++) {
                 if (isMouseInside(subMenuButtonBounds(row))) { startStage(row + 1); return; }
             }
-            if (isMouseInside(subMenuButtonBounds(4))) menuPage = MenuPage.MAIN;
+            if (isMouseInside(subMenuButtonBounds(STAGE_GODDESS_CHURCH))) menuPage = MenuPage.MAIN;
         }
     }
 
     private void leaveSettings(){
         settingsView.resetConfirm=false;
-        if(settingsFromPause){settingsFromPause=false;gameMode=GameMode.PAUSED;}
+        if(settingsFromPause){settingsFromPause=false;gameMode=GameMode.PAUSED;syncPausePointer();}
         else menuPage=MenuPage.MAIN;
     }
     private void adjustSetting(GameSettings.Option option,int direction){
@@ -2060,11 +2078,12 @@ public class Main extends ApplicationAdapter {
         uiTheme.text(spriteBatch, uiFont, "지역 선택", left + 55, 328, 1.15f, UiTheme.TEXT, 260);
         uiTheme.text(spriteBatch, uiFont, "연습할 지역을 선택하세요.", left + 55, 296, .65f, UiTheme.MUTED, 260);
         String[] names = {"신록의 폐허", "성벽", "잿빛 전장", "여신의 교회"};
-        for (int row = 0; row < 5; row++) {
+        previewStage = MathUtils.clamp(previewStage, 1, names.length);
+        for (int row = 0; row < names.length; row++) {
             if (isMouseInside(subMenuButtonBounds(row))) previewStage = row + 1;
             drawMenuButton(subMenuButtonBounds(row), "0" + (row + 1) + "  " + names[row]);
         }
-        drawMenuButton(subMenuButtonBounds(4), "돌아가기");
+        drawMenuButton(subMenuButtonBounds(names.length), "돌아가기");
         int index = previewStage - 1;
         uiTheme.panel(spriteBatch, left + 300, 40, 310, 248);
         uiTheme.text(spriteBatch, uiFont, "지역 " + previewStage, left + 314, 273, .6f, UiTheme.GOLD, 280);
