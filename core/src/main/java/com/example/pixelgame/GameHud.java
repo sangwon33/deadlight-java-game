@@ -24,6 +24,8 @@ final class GameHud implements Disposable {
     private static final Color COIN = new Color(.8f,.69f,.46f,1);
     private static final Color POWER = new Color(.69f,.61f,.82f,1);
     private final Color fillShade=new Color();
+    private CombatFeedback effects;
+    void effects(CombatFeedback value){effects=value;}
     private boolean pauseHover,inventoryHover,pointerHeld;
     private int actionHover=-1;
     void pointer(boolean pause,boolean inventory,boolean held,int action){pauseHover=pause;inventoryHover=inventory;pointerHeld=held;actionHover=action;}
@@ -32,6 +34,8 @@ final class GameHud implements Disposable {
         disc(b,x,y,16,METAL,1);
         disc(b,x,y,14.8f,SLOT_GRAY,1);
         arc(b,x,y,15.3f,35,145,.65f,RIM,.8f);
+        float pulse=effects==null?0:effects.actionFlash(action);
+        if(pulse>0)arc(b,x,y,18+(1-pulse)*3,0,360,1.2f,action==KeyBindings.Action.HEAL?UiTheme.SUCCESS:POWER,pulse*(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.3f:1));
         float packed=b.getPackedColor();b.setColor(1,1,1,count>0||buff>0?1:.36f);
         if(image!=null){
             float scale=Math.min(18f/image.getWidth(),22f/image.getHeight());
@@ -52,14 +56,18 @@ final class GameHud implements Disposable {
         ui.centered(b,f,quantity,new Rectangle(badgeX-3,y-18,badgeWidth+6,13),.57f,count>0?UiTheme.TEXT:UiTheme.MUTED);
     }
     private void money(SpriteBatch b,BitmapFont f,float left,int gold){
+        float flash=effects==null?0:effects.goldFlash();
+        if(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS))flash*=.25f;
         capsule(b,left+490,328,100,28,METAL,.7f);
         capsule(b,left+491,329,98,26,HUD_DARK,.96f);
         float cx=left+505,cy=342;
-        disc(b,cx,cy,7.5f,HUD_DARK,1);disc(b,cx,cy,6.5f,COIN,1);
+        if(flash>0)arc(b,cx,cy,9+(1-flash)*4,0,360,1.2f,COIN,flash);
+        disc(b,cx,cy,7.5f,HUD_DARK,1);disc(b,cx,cy,6.5f+flash*.8f,COIN,1);
         arc(b,cx,cy,5.1f,0,360,.65f,HUD_DARK,.65f);
         ui.diamond(b,cx,cy,2.5f,HUD_DARK,.9f);
         ui.line(b,cx-3,cy+4,cx,cy+5,.7f,UiTheme.TEXT,.7f);
-        ui.label(b,f,Integer.toString(gold),new Rectangle(left+514,331,71,22),.73f,UiTheme.TEXT,Align.right);
+        ui.label(b,f,Integer.toString(gold),new Rectangle(left+514,331,71,22),.73f,flash>0?UiTheme.GOLD:UiTheme.TEXT,Align.right);
+        if(effects!=null&&effects.goldNotice()>0)ui.label(b,f,"+"+effects.goldNotice(),new Rectangle(left+420,333,62,18),.65f,UiTheme.SUCCESS,Align.right);
     }
     private void pause(SpriteBatch b,float left){
         Rectangle r=pauseBounds(left);float x=r.x+r.width/2,y=r.y+r.height/2;
@@ -159,14 +167,14 @@ final class GameHud implements Disposable {
         if(index==1&&p.isChargingSkill())color=UiTheme.skillChargeColor(p.getSkillChargeStage());
         if(index==0&&p.isAttacking())color=UiTheme.GOLD;
         ActionIcons.plate(b,ui,cx,cy,18,actionHover==index);
+        float pulse=effects==null?0:effects.actionFlash(action);
+        if(pulse>0)ui.diamond(b,cx,cy,19+(1-pulse)*6,UiTheme.GOLD,pulse*(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.35f:.9f));
         ActionIcons.draw(b,ui,action,cx,cy,.98f,color,available||p.isChargingSkill()&&index==1?1:.62f);
         if(index!=0){
             ui.rect(b,r.x+4,10,35,2,UiTheme.BORDER,.65f);
             ui.rect(b,r.x+4,10,35*(1-Math.min(1,remaining/duration)),2,UiTheme.GOLD,1);
-            if(remaining>.05f)ui.centered(b,f,String.format(java.util.Locale.ROOT,"%.1f",remaining),new Rectangle(r.x,51,43,13),.55f,UiTheme.MUTED);
+            if(remaining>.05f&&actionHover<0&&!p.isChargingSkill())ui.centered(b,f,String.format(java.util.Locale.ROOT,"%.1f",remaining),new Rectangle(r.x,51,43,13),.55f,UiTheme.MUTED);
         }
-        if(actionHover==index)ui.centered(b,f,action.label+" · "+KeyBindings.name(action),
-                new Rectangle(Math.max(left+8,r.x-24),69,125,18),.55f,UiTheme.TEXT);
     }
     void drawActions(SpriteBatch b,BitmapFont f,float left,Player p,boolean controls){drawActions(b,f,left,p,controls,false);}
     void drawActions(SpriteBatch b,BitmapFont f,float left,Player p,boolean controls,boolean interrupted){
@@ -178,13 +186,17 @@ final class GameHud implements Disposable {
                 float a=i*45*(float)Math.PI/180,r=22+(1-flash/.9f)*8;
                 ui.line(b,cx+(float)Math.cos(a)*r,cy+(float)Math.sin(a)*r,cx+(float)Math.cos(a)*(r+5*flash),cy+(float)Math.sin(a)*(r+5*flash),.8f,UiTheme.TEXT,flash);
             }
-            if(rawFlash>.35f)ui.centered(b,f,"스킬 준비",new Rectangle(left+53,51,68,15),.55f,UiTheme.GOLD);
+            if(rawFlash>.35f&&actionHover<0)ui.centered(b,f,"스킬 준비",new Rectangle(left+53,51,68,15),.55f,UiTheme.GOLD);
         }
         if(!controls)for(int i=0;i<ACTIONS.length;i++)ability(b,f,left,i,p);
-        if(p.isChargingSkill()){
-            for(int i=0;i<4;i++)ui.rect(b,left+265+i*28,55,23,3,UiTheme.skillChargeColor(i+1),i<p.getSkillChargeStage()?1:.2f);
-            ui.centered(b,f,"집중 "+p.getSkillChargeStage()+"/4",new Rectangle(left+260,61,120,18),.68f,UiTheme.TEXT);
-        }else if(interrupted)ui.centered(b,f,"집중 취소",new Rectangle(left+260,55,120,18),.66f,Color.SALMON);
+        if(!controls&&actionHover>=0&&!p.isChargingSkill()){
+            Rectangle anchor=actionBounds(left,actionHover);
+            ActionTooltip.draw(b,ui,f,p,ACTIONS[actionHover],anchor.x+anchor.width/2,anchor.y+anchor.height);
+        }
+        if(!controls&&p.isChargingSkill()){
+            for(int i=0;i<4;i++)ui.rect(b,left+57+i*16,62,12,2,UiTheme.skillChargeColor(i+1),i<p.getSkillChargeStage()?1:.2f);
+            ui.centered(b,f,"집중 "+p.getSkillChargeStage()+"/4",new Rectangle(left+42.5f,67,88,16),.6f,UiTheme.TEXT);
+        }else if(!controls&&interrupted&&actionHover!=1)ui.centered(b,f,"집중 취소",new Rectangle(left+42.5f,63,88,16),.6f,Color.SALMON);
     }
     @Override public void dispose(){ui.dispose();}
 }

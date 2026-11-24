@@ -27,6 +27,8 @@ public class GameControls {
     private final Vector2 cursor = new Vector2();
     private boolean attack, dash;
     private boolean skillPointerHeld, jumpPointerHeld;
+    private CombatFeedback effects;
+    void effects(CombatFeedback value){effects=value;}
 
     private void refresh() {
         viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true);
@@ -108,6 +110,11 @@ public class GameControls {
             else if (hover[i]) s.setColor(0.72f, 0.88f, 1f, 0.95f);
             else s.setColor(0.68f, 0.84f, 0.93f, 0.9f);
             ring(s, x[i], y[i], r - 1, .9f, 1);
+            float pulse=effects==null?0:effects.actionFlash(actions[i]);
+            if(pulse>0){
+                s.setColor(.76f,.9f,1,pulse*(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.3f:.85f));
+                ring(s,x[i],y[i],r+2+(1-pulse)*5,1.1f,1);
+            }
             if(i==5&&player.canUseSkill()){
                 float flash=player.getSkillReadyFlash()*(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS)?.2f:1);
                 s.setColor(.68f,.88f,1,.45f+flash*.5f);ring(s,x[i],y[i],r+3+flash*5,.8f+flash,1);
@@ -132,17 +139,20 @@ public class GameControls {
             boolean charging=i==5&&player.isChargingSkill();
             Color color=charging?UiTheme.skillChargeColor(player.getSkillChargeStage()):i==5?UiTheme.GOLD:UiTheme.TEXT;
             ActionIcons.draw(batch,ui,actions[i],x[i],y[i],.95f*(1-press[i]*.08f),color,disabled(i,player)&&!charging?.62f:1);
-            if(hover[i]){
-                String label=actions[i].label+" · "+keys[i];
-                float width=130,left=MathUtils.clamp(x[i]-width/2,8,632-width);
-                ui.centered(batch,font,label,new Rectangle(left,59,width,18),.55f,UiTheme.TEXT);
-            }
+            if(hover[i]&&!player.isChargingSkill())ActionTooltip.draw(batch,ui,font,player,actions[i],x[i],y[i]+radius[i]);
         }
         for (int i : new int[]{4, 5}) if (cooldown(i, player) > 0) {
             String label = cooldown(i, player) < 1 ? String.format(java.util.Locale.ROOT, "%.1f", cooldown(i, player))
                     : Integer.toString((int)Math.ceil(cooldown(i, player)));
             ui.centered(batch, font, label, new Rectangle(x[i] - 18, 0, 36, 14),
                     .62f, Color.WHITE);
+        }
+        if(player.isChargingSkill()){
+            ui.centered(batch,font,"집중 "+player.getSkillChargeStage()+"/4",new Rectangle(x[5]-44,66,88,16),.6f,UiTheme.TEXT);
+        }else if(!hover[5]&&player.getSkillReadyFlash()>.35f){
+            ui.centered(batch,font,"스킬 준비",new Rectangle(x[5]-44,63,88,16),.55f,UiTheme.GOLD);
+        }else if(!hover[5]&&effects!=null&&effects.showsSkillInterrupted()){
+            ui.centered(batch,font,"집중 취소",new Rectangle(x[5]-44,63,88,16),.6f,Color.SALMON);
         }
         batch.end();
         font.getData().setScale(sx, sy);

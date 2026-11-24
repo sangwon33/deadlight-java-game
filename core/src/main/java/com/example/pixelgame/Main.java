@@ -46,6 +46,9 @@ public class Main extends ApplicationAdapter {
     // Development overlay only; combat collision checks run independently.
     private static final boolean DEBUG_ATTACK_BOUNDS = false;
     private final CombatFeedback feedback = new CombatFeedback();
+    private final GoldDrops goldDrops=new GoldDrops();
+    private final TrainingDamageStats trainingDamage=new TrainingDamageStats();
+    private float trainingRespawn;
     private final RegionGuide regionGuide = new RegionGuide();
     private final WorldGimmicks gimmicks=new WorldGimmicks();
     private final ArrayList<Rectangle> solidFloors=new ArrayList<>();
@@ -471,6 +474,7 @@ public class Main extends ApplicationAdapter {
         fallenGod = currentStage == STAGE_GODDESS_CHURCH
                 ? new FallenGod(780,GROUND_Y,GODDESS_CHURCH_WORLD_WIDTH) : null;
         trainingTarget = null;
+        goldDrops.clear();trainingDamage.reset();trainingRespawn=0;
         if (currentStage == STAGE_TUTORIAL) {
             trainingTarget = new Enemy(365,GROUND_Y); trainingTarget.setTrainingDummy(); enemies.add(trainingTarget);
         } else {
@@ -512,7 +516,7 @@ public class Main extends ApplicationAdapter {
         regionGuide.update(delta, player);
         StageLayout.Supply supply;
         while ((supply = regionGuide.takeCollected()) != null) {
-            gold += supply.gold(); runGoldEarned += supply.gold();
+            awardGold(supply.gold());
             healPotions += supply.heals(); attackPotions += supply.powers();
             String item = supply.heals() > 0 ? "회복 물약 +"+supply.heals()
                     : supply.powers() > 0 ? "공격 물약 +"+supply.powers() : "숨겨진 보급품";
@@ -637,12 +641,18 @@ public class Main extends ApplicationAdapter {
         if (showScreenControls) gameControls.update(player);
         else player.setScreenInput(false, false, false, false, false);
         player.captureActionInput();
+        trainingDamage.update(deltaTime);
+        awardGold(goldDrops.update(deltaTime,player,solidFloors,platforms,StageLayout.bottom(currentStage)));
         if (feedback.stopped()) return;
         int interruptionsBeforeCombat = player.getInterruptedSkillCount();
-        int attacksBefore = player.getAttackCount(), skillsBefore = player.getSkillCount(), dashesBefore = player.getDashCount();
+        int attacksBefore = player.getAttackCount(), skillsBefore = player.getSkillCount(), dashesBefore = player.getDashCount(),jumpsBefore=player.getJumpCount();
         gimmicks.beforePhysics(deltaTime,player);
         int healthBeforeCombat = player.getHealth();
         player.update(deltaTime, platforms, getCurrentWorldWidth());
+        if(player.getAttackCount()>attacksBefore)feedback.action(KeyBindings.Action.ATTACK);
+        if(player.getSkillCount()>skillsBefore)feedback.action(KeyBindings.Action.SKILL);
+        if(player.getDashCount()>dashesBefore)feedback.action(KeyBindings.Action.DASH);
+        if(player.getJumpCount()>jumpsBefore)feedback.action(KeyBindings.Action.JUMP);
         gimmicks.afterPhysics(player);
         exploration.visit(currentStage,player);
         if(lamplighter!=null&&KeyBindings.justPressed(KeyBindings.Action.INTERACT)&&lamplighter.tryStart(player))
@@ -677,10 +687,19 @@ public class Main extends ApplicationAdapter {
         if (currentStage == STAGE_TUTORIAL) {
             if (trainingTarget != null && trainingTarget.getHealth() <= 0) tutorial.targetDefeated();
             tutorial.update(player, deltaTime);
+            if(trainingTarget!=null&&trainingTarget.getHealth()<=0){
+                trainingRespawn+=deltaTime;
+                if(trainingRespawn>=1.4f){
+                    enemies.remove(trainingTarget);trainingTarget.dispose();
+                    trainingTarget=new Enemy(365,GROUND_Y);trainingTarget.setTrainingDummy();enemies.add(trainingTarget);trainingRespawn=0;
+                }
+            }
         }
         for (Enemy enemy : enemies) {
             int reward = enemy.claimGoldReward();
-            if (reward > 0) { gold += reward; runGoldEarned += reward; runDefeated++; }
+            if (reward > 0) {
+                Rectangle body=enemy.getBounds();goldDrops.spawn(reward,enemy.getCenterX(),body.y+body.height*.6f);runDefeated++;
+            }
         }
         if (!player.isAlive()) { finishRun(GameMode.GAME_OVER); return; }
         if (fallenGod != null && fallenGod.isDefeatedComplete()) { finishRun(GameMode.CLEARED); return; }
@@ -689,17 +708,22 @@ public class Main extends ApplicationAdapter {
 
     private void claimLamplighterReward(){
         if(lamplighter==null||!player.isAlive()||!lamplighter.boss.claimReward())return;
-        gold+=Lamplighter.GOLD;runGoldEarned+=Lamplighter.GOLD;runDefeated++;
+        goldDrops.spawn(Lamplighter.GOLD,lamplighter.boss.cx(),lamplighter.boss.body.y+45);runDefeated++;
         player.upgradeAttack();attackLevels++;healPotions++;
-        regionGuide.notice("등불지기 격파","골드 +80 · 공격력 +1 · 회복 포션 +1","감시탑의 봉인이 풀렸습니다");
+        regionGuide.notice("등불지기 격파","공격력 +1 · 회복 포션 +1","떨어진 재화는 잠시 후 자동 획득합니다");
     }
 
     private void claimSideBossReward(){
         if(sideBoss==null||!player.isAlive()||!sideBoss.boss.claimReward())return;
-        gold+=sideBoss.arena.gold();runGoldEarned+=sideBoss.arena.gold();runDefeated++;
+        goldDrops.spawn(sideBoss.arena.gold(),sideBoss.boss.cx(),sideBoss.boss.body.y+45);runDefeated++;
         player.upgradeAttack();attackLevels++;
         if(sideBoss.arena.roots())healPotions++;else attackPotions++;
-        regionGuide.notice(sideBoss.arena.name()+" 격파","골드 +"+sideBoss.arena.gold()+" · 공격력 +1 · "+(sideBoss.arena.roots()?"회복 포션":"공격 포션")+" +1","시련의 봉인이 풀렸습니다");
+        regionGuide.notice(sideBoss.arena.name()+" 격파","공격력 +1 · "+(sideBoss.arena.roots()?"회복 포션":"공격 포션")+" +1","떨어진 재화는 잠시 후 자동 획득합니다");
+    }
+    private void awardGold(int amount){
+        if(amount<=0)return;
+        gold+=amount;runGoldEarned+=amount;
+        feedback.goldCollected(amount,player.getCenterX(),player.getY()+25);
     }
 
     private void checkStageChange() {
@@ -728,6 +752,7 @@ public class Main extends ApplicationAdapter {
             return;
 
         }
+        if(goldDrops.pending()>0)return;
 
         if (currentStage == STAGE_ONE) {
 
@@ -802,7 +827,7 @@ public class Main extends ApplicationAdapter {
                 detail = "체력 " + before + "/" + player.getMaxHealth() + " -> " + player.getHealth() + "/" + player.getMaxHealth();
             }
         } else if (kind == StageReward.Kind.GOLD) {
-            gold += GameBalance.CLEAR_GOLD; runGoldEarned += GameBalance.CLEAR_GOLD;
+            awardGold(GameBalance.CLEAR_GOLD);
             detail = "+" + GameBalance.CLEAR_GOLD + " 골드";
         } else { player.fortifyFromReward(); detail = "+" + GameBalance.CLEAR_HEALTH + " 최대 체력"; }
         runRewards.add(new StageReward(currentStage, kind, detail)); runStats.clearRegion();
@@ -885,6 +910,7 @@ public class Main extends ApplicationAdapter {
     }
 
     private void resetRunData() {
+        goldDrops.clear();trainingDamage.reset();trainingRespawn=0;
         rewardOpen = false; rewardSelection = rewardDestination = resultPage = 0; rewardStageMessage = null;
         runRewards.clear();
         runDefeated = 0;
@@ -988,6 +1014,7 @@ public class Main extends ApplicationAdapter {
     }
 
     private void disposeGameObjects() {
+        goldDrops.clear();
         if(lamplighter!=null){lamplighter.close();lamplighter=null;}
         if(sideBoss!=null){sideBoss.close();sideBoss=null;}
 
@@ -1132,8 +1159,9 @@ public class Main extends ApplicationAdapter {
                 );
 
                 int dealt = healthBeforeHit - enemy.getHealth();
+                if(enemy==trainingTarget&&dealt>0)trainingDamage.hit(enemy.getLastHitDamage());
                 Rectangle enemyBounds = enemy.getBounds();
-                swordImpact(enemyBounds,dealt,player.isComboFinisher(),enemyBounds.y+enemyBounds.height+14);
+                swordImpact(enemyBounds,enemy==trainingTarget&&dealt>0?enemy.getLastHitDamage():dealt,player.isComboFinisher(),enemyBounds.y+enemyBounds.height+14);
                 if (dealt > 0 && feedback.allowImpactSound()) combatHitSound.play(effectiveEffects() * .46f);
                 enemiesHitThisAttack.add(enemy);
 
@@ -1193,7 +1221,13 @@ public class Main extends ApplicationAdapter {
             if (enemy.getHealth() <= 0 || enemiesHitThisSkill.contains(enemy) || !bounds.overlaps(enemy.getBounds())) continue;
             float targetCenter = enemy.getBounds().x + enemy.getBounds().width / 2;
             if (player.isFacingRight() ? targetCenter < player.getSkillSweepStartX() : targetCenter > player.getSkillSweepStartX()) continue;
-            enemy.takeDamage(player.getSkillDamage(), player.getCenterX(), true);
+            int before=enemy.getHealth();enemy.takeDamage(player.getSkillDamage(), player.getCenterX(), true);
+            int dealt=before-enemy.getHealth();
+            if(dealt>0){
+                if(enemy==trainingTarget)trainingDamage.hit(enemy.getLastHitDamage());
+                Rectangle target=enemy.getBounds();
+                feedback.hit(enemy.getCenterX(),target.y+target.height*.6f,enemy==trainingTarget?enemy.getLastHitDamage():dealt,false,true,target.y+target.height+14);
+            }
             enemiesHitThisSkill.add(enemy);
         }
         if (fallenGod != null && fallenGod.isAlive() && !bossHitThisSkill && bounds.overlaps(fallenGod.getBounds())
@@ -1310,6 +1344,7 @@ public class Main extends ApplicationAdapter {
         if(sideBoss!=null)sideBoss.drawEffects(spriteBatch);
         if(fallenGod!=null)fallenGod.drawEffects(spriteBatch);
         player.drawAttackEffects(spriteBatch);
+        goldDrops.draw(spriteBatch,uiTheme);
 
         spriteBatch.end();
 
@@ -1333,6 +1368,7 @@ public class Main extends ApplicationAdapter {
         if(currentStage==STAGE_TUTORIAL)journeyView.tutorialWorld(spriteBatch,uiFont,tutorial);
         enemyAttackView.labels(spriteBatch, uiFont, uiTheme, enemies, fallenGod);
         feedback.drawText(spriteBatch, uiFont, uiTheme);
+        if(currentStage==STAGE_TUTORIAL)trainingDamage.draw(spriteBatch,uiTheme,uiFont,trainingTarget,player);
         spriteBatch.end();
         uiViewport.apply();
         spriteBatch.setProjectionMatrix(uiCamera.combined);
@@ -1348,7 +1384,7 @@ public class Main extends ApplicationAdapter {
 
         spriteBatch.end();
         if (showScreenControls && !viewingMap && gameMode == GameMode.PLAYING && !shopOpen && !inventoryOpen && !rewardOpen && !stageTransition.active()) {
-            gameControls.draw(player, spriteBatch, shapeRenderer, uiFont, uiTheme);
+            gameControls.effects(feedback);gameControls.draw(player, spriteBatch, shapeRenderer, uiFont, uiTheme);
             spriteBatch.setProjectionMatrix(uiCamera.combined);
             shapeRenderer.setProjectionMatrix(uiCamera.combined);
         }
@@ -1711,6 +1747,7 @@ public class Main extends ApplicationAdapter {
         int before = player.getHealth();
         if (player.heal(GameBalance.healing(player.getMaxHealth()))) {
             healPotions--;
+            feedback.action(KeyBindings.Action.HEAL);
             runStats.potion();
             showInventoryMessage("회복량: " + (player.getHealth() - before) + " 체력", true);
         } else showInventoryMessage("체력이 가득 차 있습니다. 포션은 소비되지 않았습니다.", false);
@@ -1729,6 +1766,7 @@ public class Main extends ApplicationAdapter {
             attackPotions--;
             runStats.potion();
             player.drinkAttackPotion();
+            feedback.action(KeyBindings.Action.POWER);
             showInventoryMessage("공격력 +" + GameBalance.POWER_BONUS + " / 지속 시간 "
                     + (int)GameBalance.POWER_DURATION + "초", true);
         }
@@ -1766,6 +1804,7 @@ public class Main extends ApplicationAdapter {
     }
 
     private void drawHud() {
+        gameHud.effects(feedback);
         feedback.drawScreenPulse(spriteBatch, uiTheme, screenLeft());
         int actionHover=-1;
         if(!showScreenControls)for(int i=0;i<3;i++)if(isMouseInside(GameHud.actionBounds(screenLeft(),i)))actionHover=i;

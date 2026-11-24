@@ -25,10 +25,23 @@ final class CombatFeedback {
     private final DamageTrail healthTrail=new DamageTrail();
     private static final Color HURT = new Color(1, .3f, .26f, 1);
     private boolean impactSoundPlayed;
+    private final float[] actionPulses=new float[KeyBindings.Action.values().length];
+    private float goldPulse,goldNotice,pickupBurst,pickupX,pickupY;
+    private int collectedGold;
+    void action(KeyBindings.Action action){actionPulses[action.ordinal()]=action==KeyBindings.Action.HEAL||action==KeyBindings.Action.POWER?.65f:.35f;}
+    float actionFlash(KeyBindings.Action action){return Math.min(1,actionPulses[action.ordinal()]/.35f);}
+    void goldCollected(int amount,float x,float y){
+        if(amount<=0)return;
+        collectedGold=goldNotice>0?collectedGold+amount:amount;goldNotice=1.25f;goldPulse=.8f;
+        pickupBurst=.35f;pickupX=x;pickupY=y;
+    }
+    float goldFlash(){return goldPulse/.8f;}
+    int goldNotice(){return goldNotice>0?collectedGold:0;}
 
     void reset(float healthRatio) {
         impacts.clear(); stop = 0; hurtPulse = interruptedNotice = 0;
         healthTrail.reset(healthRatio); impactSoundPlayed = false;
+        java.util.Arrays.fill(actionPulses,0);goldPulse=goldNotice=pickupBurst=0;collectedGold=0;
     }
 
     void health(float ratio) {
@@ -42,6 +55,8 @@ final class CombatFeedback {
         interruptedNotice = Math.max(0, interruptedNotice - realDelta);
         healthTrail.update(realDelta,healthRatio);
         impactSoundPlayed = false;
+        for(int i=0;i<actionPulses.length;i++)actionPulses[i]=Math.max(0,actionPulses[i]-realDelta);
+        goldPulse=Math.max(0,goldPulse-realDelta);goldNotice=Math.max(0,goldNotice-realDelta);pickupBurst=Math.max(0,pickupBurst-realDelta);
         for (int i = impacts.size() - 1; i >= 0; i--) {
             Impact impact = impacts.get(i);
             impact.age += realDelta;
@@ -96,6 +111,14 @@ final class CombatFeedback {
 
     void drawSparks(ShapeRenderer shapes) {
         if(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS))return;
+        if(pickupBurst>0){
+            float t=1-pickupBurst/.35f,radius=7+t*19,length=5*(1-t);
+            shapes.setColor(.95f,.81f,.5f,1-t);
+            for(int i=0;i<8;i++){
+                double a=Math.toRadians(i*45);float dx=(float)Math.cos(a),dy=(float)Math.sin(a);
+                shapes.rectLine(pickupX+dx*radius,pickupY+dy*radius,pickupX+dx*(radius+length),pickupY+dy*(radius+length),1);
+            }
+        }
         for (Impact impact : impacts) {
             if(impact.sword){drawSwordSpark(shapes,impact);continue;}
             if (impact.age > 0.14f) continue;

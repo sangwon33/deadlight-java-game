@@ -124,6 +124,8 @@ public class Enemy {
     private boolean alive = true;
     private boolean goldRewardClaimed = false;
     private boolean trainingDummy;
+    private int lastHitDamage;
+    int getLastHitDamage(){return lastHitDamage;}
     void setTrainingDummy(){
         trainingDummy=true;collisionWidth=34;collisionHeight=70;knockbackVelocityX=0;
         if(trainingArt==null)trainingArt=MoonAtlas.acquire("art/world-props.png",4,2,.5625f);
@@ -523,6 +525,7 @@ public class Enemy {
         boolean steady = !heavy && isBraced() && inFront;
         int actual = isVulnerable() ? Math.round(damage * GameBalance.COUNTER_MULTIPLIER)
                 : steady ? Math.max(1, (damage + 1) / 2) : damage;
+        lastHitDamage=actual;
         health -= actual;
         healthTrail.health((float)Math.max(0,health)/maxHealth);
         if (!trainingDummy) alerted = true;
@@ -781,7 +784,8 @@ public class Enemy {
         if(flight.takeHit())player.takeDamage(GameBalance.MOTH_DAMAGE,getCenterX());
     }
 
-    private float getCenterX() {
+    float getY(){return y;}
+    float getCenterX() {
 
         return x + collisionWidth / 2;
     }
@@ -807,7 +811,7 @@ public class Enemy {
         return alive;
     }
 
-    /** 체력이 0이 되는 순간 한 번만 골드를 지급한다. 사망 애니메이션과 무관하다. */
+    /** Reserve the death reward once; Main spawns a drop and awards it on collection. */
     public int claimGoldReward() {
         if (trainingDummy) return 0;
         if (health > 0 || goldRewardClaimed) {
