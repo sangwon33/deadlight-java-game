@@ -38,8 +38,9 @@ final class GameHud implements Disposable {
         if(pulse>0)ui.diamond(b,x,y,12+(1-pulse)*3,potionColor,pulse*.35f);
         if(image!=null){float packed=b.getPackedColor();b.setColor(1,1,1,count>0||buff>0?1:.4f);float k=Math.min(17f/image.getWidth(),19f/image.getHeight());b.draw(image,x-image.getWidth()*k/2,y-image.getHeight()*k/2,image.getWidth()*k,image.getHeight()*k);b.setPackedColor(packed);}
         ui.label(b,f,String.format(java.util.Locale.ROOT,"%02d",Math.max(0,count)),new Rectangle(left+40,y-9,34,19),.73f,count>0?UiTheme.TEXT:UiTheme.MUTED,Align.left);
-        ui.label(b,f,KeyBindings.name(action),new Rectangle(left+78,y-7,60,15),.49f,UiTheme.MUTED,Align.left);
-        if(buff>0){ui.rect(b,left+40,y-11,32,1.5f,UiTheme.BORDER,.8f);ui.rect(b,left+40,y-11,32*Math.min(1,buff/10),1.5f,potionColor,1);ui.text(b,f,(int)Math.ceil(buff)+"초",left+109,y+5,.48f,potionColor,28);}
+        String key=KeyBindings.name(action);float keyWidth=Math.min(56,Math.max(20,12+key.length()*5f));
+        InputKeycap.draw(b,ui,f,key,new Rectangle(left+78,y-8,keyWidth,17),count>0);
+        if(buff>0){ui.rect(b,left+40,y-11,32,1.5f,UiTheme.BORDER,.8f);ui.rect(b,left+40,y-11,32*Math.min(1,buff/(action==KeyBindings.Action.POWER?GameBalance.POWER_DURATION:GameBalance.HASTE_DURATION)),1.5f,potionColor,1);ui.text(b,f,(int)Math.ceil(buff)+"초",left+166,y+5,.48f,potionColor,28);}
     }
     private void money(SpriteBatch b,BitmapFont f,float left,int gold){
         float flash=effects==null?0:effects.goldFlash();if(GameSettings.current.on(GameSettings.Option.REDUCED_EFFECTS))flash*=.25f;

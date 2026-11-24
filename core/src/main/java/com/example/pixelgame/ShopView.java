@@ -5,7 +5,7 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.*;
 final class ShopView implements Disposable {
     private static final String[] NAMES={"공격력 강화","체력 강화","회복 포션","공격력 포션","신속 포션"};
-    private static final String[] INFO={"이번 모험 동안 공격력 +1","이번 모험 동안 최대 체력 +"+GameBalance.HEALTH_UPGRADE,GameBalance.HEAL_DESCRIPTION,"10초 동안 공격력 +100%","10초 동안 이동속도 +50%"};
+    private static final String[] INFO={"이번 모험 동안 공격력 +1","이번 모험 동안 최대 체력 +"+GameBalance.HEALTH_UPGRADE,GameBalance.HEAL_DESCRIPTION,(int)GameBalance.POWER_DURATION+"초 동안 공격력 +100%",(int)GameBalance.HASTE_DURATION+"초 동안 이동속도 +50%"};
     private final UiTheme ui=new UiTheme();
     static Rectangle buyBounds(float left,int row){return new Rectangle(left+452,239-row*43,78,28);}
     static Rectangle closeBounds(float left){return new Rectangle(left+538,298,22,22);}
@@ -28,6 +28,6 @@ final class ShopView implements Disposable {
         ui.text(b,f,messageTimer>0?message:"필요한 물품을 골라주세요.",left+100,46,.57f,messageTimer>0?(success?UiTheme.SUCCESS:Color.SALMON):UiTheme.MUTED,438);
     }
     static String[] preview(int damage,int maxHealth,int health,boolean active){int base=active?Math.round(damage/GameBalance.POWER_MULTIPLIER):damage;
-        return new String[]{"공격력 "+damage+" → "+(damage+(active?2:1)),"최대 체력 "+maxHealth+" → "+(maxHealth+GameBalance.HEALTH_UPGRADE),"체력 "+GameBalance.HEAL_PERCENT+"% 회복 · ["+KeyBindings.name(KeyBindings.Action.HEAL)+"]","공격력 "+base+" → "+base*2+" · 10초","이동속도 +50% · 10초 · ["+KeyBindings.name(KeyBindings.Action.HASTE)+"]"};}
+        return new String[]{"공격력 "+damage+" → "+(damage+(active?2:1)),"최대 체력 "+maxHealth+" → "+(maxHealth+GameBalance.HEALTH_UPGRADE),"체력 "+GameBalance.HEAL_PERCENT+"% 회복 · ["+KeyBindings.name(KeyBindings.Action.HEAL)+"]","공격력 "+base+" → "+base*2+" · "+(int)GameBalance.POWER_DURATION+"초","이동속도 +50% · "+(int)GameBalance.HASTE_DURATION+"초 · ["+KeyBindings.name(KeyBindings.Action.HASTE)+"]"};}
     public void dispose(){ui.dispose();}
 }

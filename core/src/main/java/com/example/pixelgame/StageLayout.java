@@ -7,7 +7,7 @@ import com.badlogic.gdx.math.Rectangle;
 final class StageLayout {
     static final float GROUND=60f;
     static final float TUTORIAL_LOOK_X=760f,TUTORIAL_LOOK_TOP=270f,TUTORIAL_LOOK_WIDTH=200f;
-    static final float TUTORIAL_LANDING_TOP=140f;
+    static final float TUTORIAL_LANDING_TOP=160f;
     record Spawn(float x,float floor,Enemy.EnemyType type,boolean guardian,float left,float right){
         Enemy create(){Enemy e=new Enemy(x,floor,type);if(right>left)e.setTerritory(left,right);if(guardian)e.markGuardian();return e;}
     }

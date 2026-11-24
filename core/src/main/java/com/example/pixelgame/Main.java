@@ -1777,7 +1777,7 @@ public class Main extends ApplicationAdapter {
         if(speedPotions<=0){showInventoryMessage("신속 포션이 없습니다.",false);return;}
         if(!player.isAlive())return;
         speedPotions--;runStats.potion();player.drinkHastePotion();feedback.action(KeyBindings.Action.HASTE);
-        showInventoryMessage("이동속도 +50% / 10초",true);
+        showInventoryMessage("이동속도 +50% / "+(int)GameBalance.HASTE_DURATION+"초",true);
     }
     private void useAttackPotion() {
         if (attackPotions <= 0) {
@@ -1940,16 +1940,18 @@ public class Main extends ApplicationAdapter {
         if(Gdx.input.isKeyJustPressed(Input.Keys.TAB)||Gdx.input.isKeyJustPressed(Input.Keys.PAGE_DOWN)){settingsView.changeTab(settingsView.tab+1);return;}
         if(Gdx.input.isKeyJustPressed(Input.Keys.PAGE_UP)){settingsView.changeTab(settingsView.tab-1);return;}
         java.util.List<GameSettings.Option> rows=options.entries(settingsView.tab);
-        if(Gdx.input.isKeyJustPressed(Input.Keys.UP))settingsView.selected=Math.floorMod(settingsView.selected-1,rows.size()+4);
-        if(Gdx.input.isKeyJustPressed(Input.Keys.DOWN))settingsView.selected=(settingsView.selected+1)%(rows.size()+4);
+        if(Gdx.input.isKeyJustPressed(Input.Keys.UP))settingsView.selected=settingsView.selected<0?rows.size()+3:settingsView.selected-1;
+        if(Gdx.input.isKeyJustPressed(Input.Keys.DOWN))settingsView.selected=settingsView.selected>=rows.size()+3?-1:settingsView.selected+1;
         if(Gdx.input.isKeyJustPressed(Input.Keys.LEFT)||Gdx.input.isKeyJustPressed(Input.Keys.RIGHT)){
             int direction=Gdx.input.isKeyJustPressed(Input.Keys.LEFT)?-1:1;
-            if(settingsView.selected<rows.size())adjustSetting(rows.get(settingsView.selected),direction);
+            if(settingsView.selected<0)settingsView.focusTab(settingsView.tab+direction);
+            else if(settingsView.selected<rows.size())adjustSetting(rows.get(settingsView.selected),direction);
             else settingsView.selected=rows.size()+Math.floorMod(settingsView.selected-rows.size()+direction,4);
             return;
         }
         if(Gdx.input.isKeyJustPressed(Input.Keys.ENTER)){
-            if(settingsView.selected<rows.size())adjustSetting(rows.get(settingsView.selected),1);
+            if(settingsView.selected<0)settingsView.selected=0;
+            else if(settingsView.selected<rows.size())adjustSetting(rows.get(settingsView.selected),1);
             else settingsFooter(settingsView.selected-rows.size());
             return;
         }
