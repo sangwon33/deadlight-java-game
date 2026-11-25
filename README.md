@@ -1,10 +1,10 @@
-> 클라우드 배포 준비: Render Free + Neon PostgreSQL 설정이 포함되어 있습니다. 아직 실제 배포된 공용 주소는 없으며 [온라인 안내](docs/ONLINE_FEATURES.md)를 따라 계정 연결·배포를 완료해야 합니다.
+> 공용 기록 서버: 게임은 기본으로 `https://deadlight-java-game.onrender.com`에 연결합니다. 각자 다른 와이파이에서도 랭킹·도전과제를 공유하며 `SERVER.cmd`를 별도로 실행할 필요가 없습니다. 무료 서버가 쉬고 있으면 첫 접속에 1분 정도 걸릴 수 있습니다. [온라인 안내](docs/ONLINE_FEATURES.md)
 
 > 같은 와이파이 공유: 서버 노트북은 `SERVER_LAN.cmd`, 참가자는 `PLAY_LAN.cmd`를 실행합니다. 자세한 순서는 [온라인 기능 안내](docs/ONLINE_FEATURES.md)를 참고하세요.
 
 # Deadlight
 
-온라인 클리어 시간 랭킹·도전과제: 먼저 `SERVER.cmd`로 기록 서버를 실행한 뒤 기존 방식으로 게임을 실행하세요. 로비에 **여정의 기록**과 **여행자의 업적**을 추가했습니다. 실행·DB·공용 서버 연결·MySQL 설정은 [온라인 기능 안내](docs/ONLINE_FEATURES.md)를 참고하세요.
+온라인 클리어 시간 랭킹·도전과제: 기존 `PLAY.cmd` 또는 IntelliJ의 `Lwjgl3Launcher`로 게임을 실행하세요. 로비의 **여정의 기록**과 **여행자의 업적**이 공용 서버에 연결됩니다. 실행·DB·공용 서버 연결·MySQL 설정은 [온라인 기능 안내](docs/ONLINE_FEATURES.md)를 참고하세요.
 
 Java 17 이상 / libGDX 데스크톱 2D 액션 탐색 게임.
 

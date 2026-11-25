@@ -73,7 +73,7 @@ final class OnlineService implements AutoCloseable {
     private static String configuredUrl() {
         String url = System.getProperty("deadlight.serverUrl");
         if (url == null || url.isBlank()) url = System.getenv("DEADLIGHT_SERVER_URL");
-        if (url == null || url.isBlank()) url = "http://127.0.0.1:8080";
+        if (url == null || url.isBlank()) url = "https://deadlight-java-game.onrender.com";
         url = url.trim().replaceAll("/+$", "");
         URI uri = URI.create(url);
         if (!("http".equals(uri.getScheme()) || "https".equals(uri.getScheme())) || uri.getHost() == null
