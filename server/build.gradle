@@ -1,0 +1,20 @@
+apply plugin: 'application'
+
+application {
+  mainClass = 'com.example.pixelgame.server.RecordServer'
+}
+
+dependencies {
+  implementation platform('org.springframework.boot:spring-boot-dependencies:4.0.10')
+  implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+  implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+  implementation project(':online-common')
+  runtimeOnly 'com.h2database:h2'
+  runtimeOnly 'com.mysql:mysql-connector-j'
+  testImplementation 'org.junit.jupiter:junit-jupiter'
+  testImplementation project(':core')
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('run') { workingDir = projectDir }
+tasks.named('test') { useJUnitPlatform() }

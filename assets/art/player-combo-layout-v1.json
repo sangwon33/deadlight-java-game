@@ -1,0 +1,378 @@
+{
+  "version": 1,
+  "connected_to_game": true,
+  "generated_with": "built-in image_gen",
+  "coordinate_origin": "top_left",
+  "runtime": {
+    "body_scale": 0.203,
+    "feet_anchors": [
+      [
+        216,
+        372
+      ],
+      [
+        176,
+        372
+      ],
+      [
+        176,
+        372
+      ],
+      [
+        206,
+        365
+      ],
+      [
+        170,
+        367
+      ],
+      [
+        178,
+        368
+      ],
+      [
+        210,
+        369
+      ],
+      [
+        167,
+        369
+      ],
+      [
+        181,
+        368
+      ]
+    ],
+    "effect_anchors": [
+      [
+        283,
+        280
+      ],
+      [
+        259,
+        251
+      ],
+      [
+        219,
+        262
+      ],
+      [
+        284,
+        270
+      ],
+      [
+        266,
+        243
+      ],
+      [
+        228,
+        245
+      ]
+    ],
+    "step_durations": [
+      0.24,
+      0.26,
+      0.36
+    ],
+    "damage_windows": [
+      [
+        0.055,
+        0.155
+      ],
+      [
+        0.065,
+        0.18
+      ],
+      [
+        0.105,
+        0.235
+      ]
+    ],
+    "finisher_lunge": 20,
+    "finisher_multiplier": 1.4,
+    "manual_gameplay_verified": false
+  },
+  "notes": [
+    "One scale for all9 poses; original PNG pixels and alpha are unchanged.",
+    "Ground combo only. Air normal attack and Q retain their existing behavior.",
+    "One queued follow-up; a single press never automatically plays all three hits.",
+    "Per-hit attack sequence increments preserve Main one-hit-per-target bookkeeping.",
+    "First two hits can dash-cancel; third commits until 0.30 seconds.",
+    "Explicit source rectangles prevent integer division slicing errors."
+  ],
+  "actor": {
+    "file": "player_combo_v1.png",
+    "width": 1254,
+    "height": 1254,
+    "columns": 3,
+    "rows": 3,
+    "sha256": "9340fb2711b3c279ac6202d8fcbd1a0241ef4f22fe4d97bc3ffe50b01a70b13e",
+    "frames": [
+      {
+        "index": 0,
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 418,
+          "height": 418
+        },
+        "visible_bounds_alpha_gt_80": [
+          81,
+          64,
+          336,
+          372
+        ],
+        "margin": 46,
+        "name": "cut_prepare"
+      },
+      {
+        "index": 1,
+        "region": {
+          "x": 418,
+          "y": 0,
+          "width": 418,
+          "height": 418
+        },
+        "visible_bounds_alpha_gt_80": [
+          51,
+          74,
+          385,
+          372
+        ],
+        "margin": 33,
+        "name": "cut_strike"
+      },
+      {
+        "index": 2,
+        "region": {
+          "x": 836,
+          "y": 0,
+          "width": 418,
+          "height": 418
+        },
+        "visible_bounds_alpha_gt_80": [
+          75,
+          65,
+          334,
+          372
+        ],
+        "margin": 46,
+        "name": "cut_recover"
+      },
+      {
+        "index": 3,
+        "region": {
+          "x": 0,
+          "y": 418,
+          "width": 418,
+          "height": 418
+        },
+        "visible_bounds_alpha_gt_80": [
+          65,
+          65,
+          333,
+          365
+        ],
+        "margin": 53,
+        "name": "rise_prepare"
+      },
+      {
+        "index": 4,
+        "region": {
+          "x": 418,
+          "y": 418,
+          "width": 418,
+          "height": 418
+        },
+        "visible_bounds_alpha_gt_80": [
+          59,
+          44,
+          362,
+          367
+        ],
+        "margin": 44,
+        "name": "rise_strike"
+      },
+      {
+        "index": 5,
+        "region": {
+          "x": 836,
+          "y": 418,
+          "width": 418,
+          "height": 418
+        },
+        "visible_bounds_alpha_gt_80": [
+          70,
+          43,
+          336,
+          368
+        ],
+        "margin": 43,
+        "name": "rise_recover"
+      },
+      {
+        "index": 6,
+        "region": {
+          "x": 0,
+          "y": 836,
+          "width": 418,
+          "height": 418
+        },
+        "visible_bounds_alpha_gt_80": [
+          72,
+          15,
+          334,
+          369
+        ],
+        "margin": 15,
+        "name": "finish_prepare"
+      },
+      {
+        "index": 7,
+        "region": {
+          "x": 418,
+          "y": 836,
+          "width": 418,
+          "height": 418
+        },
+        "visible_bounds_alpha_gt_80": [
+          27,
+          70,
+          375,
+          369
+        ],
+        "margin": 27,
+        "name": "finish_strike"
+      },
+      {
+        "index": 8,
+        "region": {
+          "x": 836,
+          "y": 836,
+          "width": 418,
+          "height": 418
+        },
+        "visible_bounds_alpha_gt_80": [
+          65,
+          59,
+          319,
+          368
+        ],
+        "margin": 50,
+        "name": "finish_recover"
+      }
+    ]
+  },
+  "effects": {
+    "file": "player_combo_fx_v1.png",
+    "width": 1536,
+    "height": 1024,
+    "columns": 3,
+    "rows": 2,
+    "sha256": "32df00b7eeafe743fc15cfc030613d2d23e3658a14845ac8f176c02a4143be3e",
+    "frames": [
+      {
+        "index": 0,
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 512,
+          "height": 512
+        },
+        "visible_bounds_alpha_gt_80": [
+          126,
+          239,
+          440,
+          322
+        ],
+        "margin": 72,
+        "name": "cut_arc"
+      },
+      {
+        "index": 1,
+        "region": {
+          "x": 512,
+          "y": 0,
+          "width": 512,
+          "height": 512
+        },
+        "visible_bounds_alpha_gt_80": [
+          123,
+          105,
+          395,
+          397
+        ],
+        "margin": 105,
+        "name": "rise_arc"
+      },
+      {
+        "index": 2,
+        "region": {
+          "x": 1024,
+          "y": 0,
+          "width": 512,
+          "height": 512
+        },
+        "visible_bounds_alpha_gt_80": [
+          75,
+          122,
+          362,
+          401
+        ],
+        "margin": 75,
+        "name": "finish_arc"
+      },
+      {
+        "index": 3,
+        "region": {
+          "x": 0,
+          "y": 512,
+          "width": 512,
+          "height": 512
+        },
+        "visible_bounds_alpha_gt_80": [
+          128,
+          217,
+          439,
+          323
+        ],
+        "margin": 73,
+        "name": "cut_fade"
+      },
+      {
+        "index": 4,
+        "region": {
+          "x": 512,
+          "y": 512,
+          "width": 512,
+          "height": 512
+        },
+        "visible_bounds_alpha_gt_80": [
+          125,
+          97,
+          406,
+          388
+        ],
+        "margin": 97,
+        "name": "rise_fade"
+      },
+      {
+        "index": 5,
+        "region": {
+          "x": 1024,
+          "y": 512,
+          "width": 512,
+          "height": 512
+        },
+        "visible_bounds_alpha_gt_80": [
+          75,
+          118,
+          381,
+          372
+        ],
+        "margin": 75,
+        "name": "finish_fade"
+      }
+    ]
+  }
+}
