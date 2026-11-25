@@ -169,4 +169,38 @@ class OnlineServiceTest {
         client.update(.1f,false); reply(0,"{}",401); reply(1,"{}",409);
         assertEquals(1,client.pendingCount()); assertEquals("x".repeat(43),data.get("token"));
     }
+
+    @Test void sleepingCloudServerRetriesAndFinishesLoading() {
+        OnlineService client=new OnlineService("https://test.invalid",prefs); client.loadBoard(1);
+        reply(0,"<html>starting</html>",503);
+        assertTrue(client.boardLoading); assertTrue(client.waitingForServer());
+        client.update(3.1f,false); assertEquals(2,calls.size());
+        reply(1,"{\"entries\":[],\"personalBest\":null}");
+        assertFalse(client.boardLoading); assertEquals("",client.boardError);
+    }
+
+    @Test void cloudRetriesHaveAFiniteLimit() {
+        OnlineService client=new OnlineService("https://test.invalid",prefs); client.loadBoard(1);
+        for(int i=0;i<13;i++) { reply(i,"{}",503); if(i<12)client.update(3.1f,false); }
+        assertEquals(13,calls.size()); assertFalse(client.boardLoading); assertFalse(client.boardError.isBlank());
+    }
+
+    @Test void cloudTimeoutKeepsOriginalSubmissionUntilAcknowledged() {
+        OnlineService client=new OnlineService("https://test.invalid",prefs); client.completed(clear()); client.update(.1f,false);
+        String body=calls.get(0).request().getContent(); calls.get(0).listener().failed(new RuntimeException("timeout"));
+        assertEquals(1,client.pendingCount()); client.update(3.1f,false);
+        assertEquals(body,calls.get(1).request().getContent()); reply(1,ACK); assertEquals(0,client.pendingCount());
+    }
+
+    @Test void closingClientCancelsDelayedCloudRequests() {
+        OnlineService client=new OnlineService("https://test.invalid",prefs); client.loadBoard(1);
+        reply(0,"{}",503); client.close(); client.update(10,false); assertEquals(1,calls.size());
+    }
+
+    @Test void playerCanLeaveRegistrationWhileUploadIsPending() {
+        OnlineService client=new OnlineService("https://test.invalid",prefs); client.completed(clear());
+        OnlineScreen screen=new OnlineScreen(); screen.openEntry(client); press(screen,client,Input.Keys.ENTER);
+        assertEquals(OnlineScreen.Action.BACK,press(screen,client,Input.Keys.ESCAPE));
+        assertEquals(1,client.pendingCount());
+    }
 }

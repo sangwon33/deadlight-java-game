@@ -1,3 +1,5 @@
+> 클라우드 배포 준비: Render Free + Neon PostgreSQL 설정이 포함되어 있습니다. 아직 실제 배포된 공용 주소는 없으며 [온라인 안내](docs/ONLINE_FEATURES.md)를 따라 계정 연결·배포를 완료해야 합니다.
+
 > 같은 와이파이 공유: 서버 노트북은 `SERVER_LAN.cmd`, 참가자는 `PLAY_LAN.cmd`를 실행합니다. 자세한 순서는 [온라인 기능 안내](docs/ONLINE_FEATURES.md)를 참고하세요.
 
 # Deadlight

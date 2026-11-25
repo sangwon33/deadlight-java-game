@@ -16,6 +16,44 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 
 /** Two actual game clients, independent identities, real libGDX HTTP and the same SQL server. */
 class GameClientIntegrationTest {
+    /** Opt-in test in an isolated schema; never adds test records to the live ranking. */
+    @Test
+    @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="DEADLIGHT_TEST_PG_URL",matches="jdbc:postgresql:.*")
+    void postgresRankingAndIdentitySurviveServerRestart() throws Exception {
+        String url=System.getenv("DEADLIGHT_TEST_PG_URL"), user=System.getenv("DEADLIGHT_TEST_PG_USER"), password=System.getenv("DEADLIGHT_TEST_PG_PASSWORD");
+        String schema="deadlight_test_"+java.util.UUID.randomUUID().toString().replace("-","");
+        try(var connection=java.sql.DriverManager.getConnection(url,user,password)) {
+            try(var stmt=connection.createStatement()) { stmt.execute("CREATE SCHEMA "+schema); }
+            String scoped=url+(url.contains("?")?"&":"?")+"currentSchema="+schema;
+            com.example.pixelgame.online.OnlineContract.PlayerCredentials identity;
+            try {
+                try(var server=postgres(scoped,user,password)) {
+                    var records=server.getBean(com.example.pixelgame.server.RecordService.class);
+                    identity=records.register(); var other=records.register();
+                    records.recover(identity);
+                    var run=new com.example.pixelgame.online.OnlineContract.RunSubmission(java.util.UUID.randomUUID().toString(),"PGS",11,1,4,true,10200,0,0,0,false,true);
+                    records.submit(identity.playerId(),run); records.submit(identity.playerId(),run);
+                    records.submit(other.playerId(),new com.example.pixelgame.online.OnlineContract.RunSubmission(java.util.UUID.randomUUID().toString(),"TWO",11,1,4,true,9800,1,1,1,false,true));
+                    assertEquals(2,records.leaderboard(identity.playerId(),11,1,10).personalBest().rank());
+                    assertEquals(4,records.achievements(identity.playerId()).stream().filter(x->x.unlocked()).count());
+                }
+                try(var restarted=postgres(scoped,user,password)) {
+                    var records=restarted.getBean(com.example.pixelgame.server.RecordService.class);
+                    assertEquals(identity.playerId(),records.authenticate("Bearer "+identity.accessToken()));
+                    assertEquals(2,records.leaderboard(identity.playerId(),11,1,10).entries().size());
+                    assertEquals(4,records.achievements(identity.playerId()).stream().filter(x->x.unlocked()).count());
+                }
+            } finally {
+                try(var stmt=connection.createStatement()) { stmt.execute("DROP SCHEMA "+schema+" CASCADE"); }
+            }
+        }
+    }
+    private static org.springframework.context.ConfigurableApplicationContext postgres(String url,String user,String password) {
+        return new SpringApplicationBuilder(RecordServer.class).run("--server.port=0","--spring.profiles.active=postgres",
+                "--spring.datasource.url="+url,"--spring.datasource.username="+user,"--spring.datasource.password="+password,
+                "--spring.main.banner-mode=off","--logging.level.root=WARN");
+    }
+
     @Test void twoGameClientsPublishAndSeeEachOther() throws Exception {
         var oldApp=Gdx.app; var oldNet=Gdx.net;
         var callbacks=new ConcurrentLinkedQueue<Runnable>();

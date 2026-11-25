@@ -60,7 +60,7 @@ final class OnlineScreen {
         if (page==Page.ENTRY) {
             if (waiting && online.lastPublishedRunId.equals(candidate.runId())) { openRanking(online,startStage); return Action.STAY; }
             if (waiting && online.errorSequence!=submittedError) waiting=false;
-            if (waiting) return Action.STAY;
+            if (waiting) return Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)?Action.BACK:Action.STAY;
             if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) return Action.BACK;
             if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) nameFocus=!nameFocus;
             if (nameFocus) {
@@ -145,7 +145,7 @@ final class OnlineScreen {
             boolean enabled=!(page==Page.ENTRY&&waiting)&&!(page==Page.RANKING&&i==1&&online.latestClear==null);
             ui.menuChoice(b,f,button(i,labels.length),labels[i],enabled&&selected==i&&!(page==Page.ENTRY&&nameFocus),false,.65f);
         }
-        String hint=page==Page.ENTRY?"Enter 등록 · Tab 버튼 선택 · Esc 건너뛰기":"↑↓ 선택 · Enter 결정 · R 새로고침 · Esc 돌아가기";
+        String hint=page==Page.ENTRY?(waiting?"Esc 돌아가기 · 요청한 등록은 계속 진행됩니다":"Enter 등록 · Tab 버튼 선택 · Esc 건너뛰기"):"↑↓ 선택 · Enter 결정 · R 새로고침 · Esc 돌아가기";
         ui.centered(b,f,hint,new Rectangle(32,21,378,13),.47f,UiTheme.MUTED);
     }
 
@@ -161,7 +161,7 @@ final class OnlineScreen {
         ui.centered(b,f,"이름",new Rectangle(132,225,88,17),.57f,UiTheme.MUTED);
         ui.centered(b,f,"클리어 시간",new Rectangle(279,225,105,17),.57f,UiTheme.MUTED);
         ui.line(b,43,224,398,224,.5f,UiTheme.BORDER,.9f);
-        if(online.boardLoading) message(b,f,ui,"기록을 불러오고 있습니다.",146,UiTheme.MUTED);
+        if(online.boardLoading) message(b,f,ui,online.waitingForServer()?"기록 서버를 준비하고 있습니다.\n잠시만 기다려 주세요.":"기록을 불러오고 있습니다.",146,UiTheme.MUTED);
         else if(!online.boardError.isEmpty()) message(b,f,ui,online.boardError+"\n새로고침으로 다시 연결할 수 있습니다.",137,Color.SALMON);
         else if(online.board.entries().isEmpty()) message(b,f,ui,"아직 등록된 여정이 없습니다.\n첫 번째 기록을 남겨보세요.",138,UiTheme.MUTED);
         else {
@@ -202,7 +202,7 @@ final class OnlineScreen {
         }
         ui.centered(b,f,"영문 A–Z · 3글자",new Rectangle(38,98,364,16),.58f,UiTheme.MUTED);
         ui.centered(b,f,"←→ 자리 이동 · ↑↓ 글자 변경 · 영문 직접 입력",new Rectangle(38,83,364,15),.51f,UiTheme.MUTED);
-        String note=waiting?"기록을 안전하게 등록하고 있습니다.":!online.lastError.isEmpty()?online.lastError:"등록한 기록은 다른 여행자와 함께 표시됩니다.";
+        String note=waiting?(online.waitingForServer()?"서버를 준비 중입니다. 등록 요청은 PC에 보관됩니다.":"기록을 안전하게 등록하고 있습니다."):!online.lastError.isEmpty()?online.lastError:"등록한 기록은 다른 여행자와 함께 표시됩니다.";
         ui.paragraph(b,f,note,new Rectangle(44,62,350,20),.51f,!online.lastError.isEmpty()?Color.SALMON:UiTheme.MUTED);
     }
 
@@ -219,7 +219,7 @@ final class OnlineScreen {
             ui.centered(b,f,status,new Rectangle(329,y+19,60,16),.52f,a.unlocked()?UiTheme.SUCCESS:UiTheme.BORDER);
             ui.line(b,45,y-10,397,y-10,.45f,UiTheme.BORDER,.65f);
         }
-        String note=online.achievementsLoading?"업적을 불러오고 있습니다.":!online.achievementError.isEmpty()?online.achievementError
+        String note=online.achievementsLoading?(online.waitingForServer()?"서버를 준비하고 있습니다. 잠시 기다려 주세요.":"업적을 불러오고 있습니다."):!online.achievementError.isEmpty()?online.achievementError
                 :online.pendingCount()>0?"미전송 기록 "+online.pendingCount()+"개 · 연결되면 자동으로 동기화합니다.":"달성한 업적은 기록 서버에 보관됩니다.";
         ui.paragraph(b,f,note,new Rectangle(44,64,350,18),.5f,!online.achievementError.isEmpty()?Color.SALMON:UiTheme.MUTED);
     }

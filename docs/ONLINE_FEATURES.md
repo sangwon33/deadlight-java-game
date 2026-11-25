@@ -1,5 +1,21 @@
 # 랭킹·도전과제 실행과 구성
 
+## 무료 클라우드 배포 준비 (Render + Neon)
+
+현재 소스에는 배포 설정이 포함되어 있지만 계정 생성·실제 배포·공용 주소 확정은 별도 단계입니다. 클라우드 배포 성공 전까지 게임 기본 접속 주소는 기존 로컬 주소입니다. 배포 후 확정된 HTTPS 주소를 게임 기본값에 반영한 수정본으로 배포해야 모두 같은 클라우드에 접속합니다. 로컬 DB는 보존하며 Neon으로 자동 이전하지 않습니다.
+
+- Neon의 Free 프로젝트에 PostgreSQL을 준비합니다. Render 무료 PostgreSQL은 30일 후 만료되므로 이 구성에서는 사용하지 않습니다.
+- Render에서 GitHub의 `Hsg` 브랜치를 연결하고 `render.yaml` Blueprint 또는 Docker Web Service로 생성합니다. 요금제는 Free, Dockerfile은 프로젝트 루트의 `Dockerfile`, 상태 확인 경로는 `/api/health`입니다.
+- Render의 비밀 환경변수에 `DB_URL`, `DB_USER`, `DB_PASSWORD`를 입력합니다. DB 연결정보·비밀번호는 Git이나 게임 배포물에 넣지 않습니다.
+- `SPRING_PROFILES_ACTIVE=postgres`, `SERVER_ADDRESS=0.0.0.0`을 사용합니다. Render의 `PORT` 값은 기존 서버 설정이 읽습니다. Docker 실행 이미지는 서버·공통 라이브러리만 포함하며 게임 이미지·DB 파일을 포함하지 않습니다.
+- `DB_URL`은 Neon 주소를 JDBC 형식으로 사용합니다. 예: `jdbc:postgresql://실제-Neon-호스트/neondb?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory`. 사용자·비밀번호는 별도 환경변수로 지정합니다.
+- 무료 Render 서버가 쉬고 있을 때 HTTPS 요청은 3초 간격으로 최대 12회 재시도합니다. 각 HTTP 요청 제한은 5초입니다. 게임은 계속 조작할 수 있고 랭킹·업적 화면에는 연결 준비 상태를 표시합니다. 등록 요청은 PC에 보존하며 Esc로 화면을 나가도 전송을 이어갑니다.
+- 최종 확인은 공용 주소에서 두 클라이언트의 등록·랭킹 공유, 서버 재시작 후 기록 유지, 각자 다른 네트워크에서의 접속을 확인합니다. 계정 연결 전에는 이 검증이 완료된 것이 아닙니다.
+
+PostgreSQL 검증은 실제 DB 연결정보를 테스트 전용 환경변수 `DEADLIGHT_TEST_PG_URL`, `DEADLIGHT_TEST_PG_USER`, `DEADLIGHT_TEST_PG_PASSWORD`로 전달한 뒤 `gradlew.bat server:test --tests '*GameClientIntegrationTest.postgresRankingAndIdentitySurviveServerRestart'`로 실행합니다. 테스트는 임의 이름의 격리 스키마를 만들고 정리하며 공개 랭킹에 테스트 기록을 추가하지 않습니다. 연결정보가 없으면 이 테스트는 건너뜁니다.
+
+무료 플랜의 대기 시간·용량·사용량 제한은 서비스 정책에 따릅니다. 원격 서버가 이용 가능한 동안 노트북을 꺼도 기록은 Neon에 보관되고 다른 사용자가 접속할 수 있습니다.
+
 ## 같은 와이파이에서 함께 사용하기
 
 1. 서버 역할을 맡은 노트북 한 대에서 `SERVER_LAN.cmd`를 실행합니다. 다른 노트북에서는 서버를 실행하지 않습니다.

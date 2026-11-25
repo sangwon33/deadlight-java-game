@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: deadlight-records
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: Hsg
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: SERVER_ADDRESS
+        value: 0.0.0.0
+      - key: SPRING_PROFILES_ACTIVE
+        value: postgres
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false

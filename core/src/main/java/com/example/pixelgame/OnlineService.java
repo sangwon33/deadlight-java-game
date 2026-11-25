@@ -32,6 +32,12 @@ final class OnlineService implements AutoCloseable {
     private boolean recovering;
     private final LinkedHashMap<String,RunSubmission> outbox = new LinkedHashMap<>();
     private final Set<Net.HttpRequest> requests = new HashSet<>();
+    private final List<PendingRetry> delayedRequests = new ArrayList<>();
+    private static final class PendingRetry {
+        float remaining = 3;
+        final Runnable action;
+        PendingRetry(Runnable action) { this.action=action; }
+    }
     private boolean registering, sending, closed;
     private float retryDelay, toastSeconds;
     private long boardRequest;
@@ -107,6 +113,12 @@ final class OnlineService implements AutoCloseable {
 
     void retryNow() { retryDelay = 0; lastError = ""; }
     void update(float dt, boolean showNotifications) {
+        List<Runnable> ready = new ArrayList<>();
+        for(int i=delayedRequests.size()-1;i>=0;i--) {
+            PendingRetry pending=delayedRequests.get(i); pending.remaining-=Math.max(0,dt);
+            if(pending.remaining<=0) { delayedRequests.remove(i); ready.add(pending.action); }
+        }
+        if(!closed) for(Runnable action:ready) action.run();
         retryDelay = Math.max(0, retryDelay - Math.max(0, dt));
         if (showNotifications) toastSeconds = Math.max(0, toastSeconds - dt);
         if (!closed && !sending && !outbox.isEmpty() && retryDelay == 0) {
@@ -224,6 +236,12 @@ final class OnlineService implements AutoCloseable {
 
     private void request(String method, String path, String body, boolean authenticate,
             Consumer<JsonValue> success, BiConsumer<Integer,String> failure, boolean allowRecovery) {
+        request(method,path,body,authenticate,success,failure,allowRecovery,baseUrl.startsWith("https://")?12:0);
+    }
+
+    private void request(String method, String path, String body, boolean authenticate,
+            Consumer<JsonValue> success, BiConsumer<Integer,String> failure, boolean allowRecovery, int retries) {
+        if(closed)return;
         Net.HttpRequest req = new Net.HttpRequest(method);
         req.setUrl(baseUrl + path); req.setTimeOut(5000); req.setHeader("Accept", "application/json");
         if (authenticate) req.setHeader("Authorization", "Bearer " + credentials.accessToken());
@@ -236,18 +254,27 @@ final class OnlineService implements AutoCloseable {
                     String text = response.getResultAsString();
                     Gdx.app.postRunnable(() -> {
                         requests.remove(req); if (closed) return;
+                        if((status==408||status==429||status==500||status==502||status==503||status==504)&&retry()) return;
                         try {
                             JsonValue json = new JsonReader().parse(text);
                             if (status >= 200 && status < 300) success.accept(json);
                             else if(status==401 && authenticate && allowRecovery)
                                 recoverIdentity(() -> request(method,path,body,true,success,failure,false),failure);
                             else failure.accept(status, json.getString("message", "기록 요청을 처리하지 못했습니다."));
-                        } catch (RuntimeException e) { failure.accept(status, "서버 응답을 읽지 못했습니다. 잠시 후 다시 시도해 주세요."); }
+                        } catch (RuntimeException e) {
+                            if(status>=200&&status<300&&retry()) return;
+                            failure.accept(status, "서버 응답을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.");
+                        }
                     });
                 }
                 @Override public void failed(Throwable error) { fail("기록 서버에 연결하지 못했습니다. 서버 실행과 연결을 확인해 주세요."); }
                 @Override public void cancelled() { fail("기록 요청이 취소되었습니다. 다시 시도해 주세요."); }
-                private void fail(String message) { Gdx.app.postRunnable(() -> { requests.remove(req); if (!closed) failure.accept(0, message); }); }
+                private boolean retry() {
+                    if(retries<=0||closed)return false;
+                    delayedRequests.add(new PendingRetry(() -> request(method,path,body,authenticate,success,failure,allowRecovery,retries-1)));
+                    return true;
+                }
+                private void fail(String message) { Gdx.app.postRunnable(() -> { requests.remove(req); if (!closed&&!retry()) failure.accept(0, message); }); }
             });
         } catch (RuntimeException e) { requests.remove(req); failure.accept(0, "기록 서버에 연결하지 못했습니다."); }
     }
@@ -287,10 +314,12 @@ final class OnlineService implements AutoCloseable {
         return List.copyOf(out);
     }
     boolean toastVisible() { return toastSeconds > 0; }
+    boolean waitingForServer() { return !delayedRequests.isEmpty(); }
     @Override public void close() {
         closed = true;
         for (Net.HttpRequest request : List.copyOf(requests)) Gdx.net.cancelHttpRequest(request);
         requests.clear(); waitingForIdentity.clear(); identityFailures.clear();
         recoveryActions.clear(); recoveryFailures.clear();
+        delayedRequests.clear();
     }
 }

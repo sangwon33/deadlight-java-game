@@ -11,6 +11,7 @@ dependencies {
   implementation project(':online-common')
   runtimeOnly 'com.h2database:h2'
   runtimeOnly 'com.mysql:mysql-connector-j'
+  runtimeOnly 'org.postgresql:postgresql'
   testImplementation 'org.junit.jupiter:junit-jupiter'
   testImplementation project(':core')
   testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
