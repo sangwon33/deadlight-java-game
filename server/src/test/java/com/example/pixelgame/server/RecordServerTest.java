@@ -53,6 +53,18 @@ class RecordServerTest {
         return HTTP.send(b.build(),HttpResponse.BodyHandlers.ofString());
     }
 
+    @Test @Order(8) void lostIdentityCanBeRestoredButExistingIdentityCannotBeOverwritten() throws Exception {
+        PlayerCredentials identity=new PlayerCredentials(UUID.randomUUID().toString(),"a".repeat(43));
+        String body="{\"playerId\":\""+identity.playerId()+"\",\"accessToken\":\""+identity.accessToken()+"\"}";
+        assertEquals(200,request("POST","/api/players/recover",null,body).statusCode());
+        assertEquals(identity.playerId(),service.authenticate("Bearer "+identity.accessToken()));
+        assertEquals(200,request("POST","/api/players/recover",null,body).statusCode());
+        assertEquals(401,request("POST","/api/players/recover",null,body.replace("a".repeat(43),"b".repeat(43))).statusCode());
+        assertEquals(identity.playerId(),service.authenticate("Bearer "+identity.accessToken()));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM players WHERE id=?",Integer.class,identity.playerId()));
+        assertEquals(400,request("POST","/api/players/recover",null,"{}").statusCode());
+    }
+
     @Test @Order(1) void httpRegistrationAndAuthentication() throws Exception {
         var response=request("POST","/api/players",null,"{}");
         assertEquals(201,response.statusCode());

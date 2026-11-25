@@ -58,6 +58,22 @@ public class RecordService {
         return ids.get(0);
     }
 
+    /** Restore an absent identity after a DB replacement; never overwrite an existing identity. */
+    public PlayerCredentials recover(PlayerCredentials identity) {
+        if (identity == null || identity.playerId() == null || identity.accessToken() == null
+                || !identity.accessToken().matches("[A-Za-z0-9_-]{43}")) bad();
+        try { if (!UUID.fromString(identity.playerId()).toString().equals(identity.playerId())) bad(); }
+        catch (IllegalArgumentException e) { bad(); }
+        try {
+            db.update("INSERT INTO players(id, token_hash, created_at) VALUES (?, ?, ?)",
+                    identity.playerId(), hash(identity.accessToken()), System.currentTimeMillis());
+        } catch (org.springframework.dao.DuplicateKeyException existing) {
+            // Concurrent recovery and repeated requests are harmless. Authenticate below.
+        }
+        if (!identity.playerId().equals(authenticate("Bearer " + identity.accessToken()))) throw unauthorized();
+        return identity;
+    }
+
     public SubmissionResult submit(String playerId, RunSubmission run) {
         validate(run);
         return transaction.execute(status -> {

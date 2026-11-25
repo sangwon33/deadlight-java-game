@@ -1,3 +1,5 @@
+> 같은 와이파이 공유: 서버 노트북은 `SERVER_LAN.cmd`, 참가자는 `PLAY_LAN.cmd`를 실행합니다. 자세한 순서는 [온라인 기능 안내](docs/ONLINE_FEATURES.md)를 참고하세요.
+
 # Deadlight
 
 온라인 클리어 시간 랭킹·도전과제: 먼저 `SERVER.cmd`로 기록 서버를 실행한 뒤 기존 방식으로 게임을 실행하세요. 로비에 **여정의 기록**과 **여행자의 업적**을 추가했습니다. 실행·DB·공용 서버 연결·MySQL 설정은 [온라인 기능 안내](docs/ONLINE_FEATURES.md)를 참고하세요.

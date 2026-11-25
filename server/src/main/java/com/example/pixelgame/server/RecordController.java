@@ -17,6 +17,8 @@ public class RecordController {
     @GetMapping("/health") public Map<String,String> health() { return Map.of("status", "ok"); }
     @PostMapping("/players") @ResponseStatus(HttpStatus.CREATED)
     public PlayerCredentials register() { return service.register(); }
+    @PostMapping("/players/recover")
+    public PlayerCredentials recover(@RequestBody PlayerCredentials identity) { return service.recover(identity); }
     @PostMapping("/runs") public SubmissionResult submit(@RequestHeader(value="Authorization", required=false) String auth, @RequestBody RunSubmission run) {
         return service.submit(service.authenticate(auth), run);
     }

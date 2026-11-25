@@ -53,6 +53,15 @@ dependencies {
 
 def os = System.properties['os.name'].toLowerCase(Locale.ROOT)
 
+tasks.register('lanRun', JavaExec) {
+  dependsOn tasks.named('classes')
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'com.example.pixelgame.lwjgl3.LanLauncher'
+  workingDir = rootProject.file('assets')
+  jvmArgs '--enable-native-access=ALL-UNNAMED'
+  if (os.contains('mac')) jvmArgs '-XstartOnFirstThread'
+}
+
 tasks.register('onlinePreview', JavaExec) {
   dependsOn tasks.named('testClasses')
   classpath = sourceSets.test.runtimeClasspath

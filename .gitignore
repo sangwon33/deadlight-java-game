@@ -1,4 +1,7 @@
 ## Gradle:
+/data/
+*.mv.db
+*.trace.db
 /server/data/
 /server/build/
 /online-common/build/

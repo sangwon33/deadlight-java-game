@@ -59,8 +59,11 @@ class OnlineServiceTest {
     @AfterEach void cleanup() { Gdx.app=oldApp; Gdx.net=oldNet; Gdx.input=oldInput; }
     RunResult clear() { return new RunResult(true,4,20,300,10,803.28f,0,0,0,1,true,803.28f,1); }
     void reply(int index,String body) {
+        reply(index,body,200);
+    }
+    void reply(int index,String body,int status) {
         Net.HttpResponse response=(Net.HttpResponse)Proxy.newProxyInstance(getClass().getClassLoader(),new Class[]{Net.HttpResponse.class},(p,m,a)->switch(m.getName()){
-            case "getStatus" -> new HttpStatus(200);
+            case "getStatus" -> new HttpStatus(status);
             case "getResultAsString" -> body;
             default -> throw new UnsupportedOperationException(m.getName());
         });
@@ -139,5 +142,31 @@ class OnlineServiceTest {
         assertTrue(client.completed(clear())); String previous=client.latestClear.runId();
         RunResult tooLong=new RunResult(true,4,20,300,10,43201,0,0,0,1,true,43201,1);
         assertFalse(client.completed(tooLong)); assertEquals(previous,client.latestClear.runId());
+    }
+
+    @Test void staleIdentityRecoversWithoutDiscardingTokenOrQueuedRun() {
+        OnlineService client=new OnlineService("http://localhost:8080",prefs); client.completed(clear());
+        String id=client.latestClear.runId(); client.update(.1f,false);
+        reply(0,"{\"message\":\"unauthorized\"}",401);
+        assertTrue(calls.get(1).request().getUrl().endsWith("/players/recover"));
+        reply(1,"{\"playerId\":\"test-player\",\"accessToken\":\""+"x".repeat(43)+"\"}");
+        assertEquals(id,new JsonReader().parse(calls.get(2).request().getContent()).getString("runId"));
+        reply(2,ACK); assertEquals(0,client.pendingCount());
+        assertEquals("test-player",data.get("playerId")); assertEquals("x".repeat(43),data.get("token"));
+    }
+
+    @Test void simultaneousFailuresUseOneRecoveryAndRetryOnlyOnce() {
+        OnlineService client=new OnlineService("http://localhost:8080",prefs);
+        client.loadBoard(1); client.loadAchievements();
+        reply(0,"{}",401); reply(1,"{}",401); assertEquals(3,calls.size());
+        reply(2,"{\"playerId\":\"test-player\",\"accessToken\":\""+"x".repeat(43)+"\"}");
+        assertEquals(5,calls.size()); reply(3,"{}",401); reply(4,"{}",401);
+        assertEquals(5,calls.size()); assertFalse(client.boardLoading); assertFalse(client.achievementsLoading);
+    }
+
+    @Test void rejectedRecoveryPreservesPendingRecord() {
+        OnlineService client=new OnlineService("http://localhost:8080",prefs); client.completed(clear());
+        client.update(.1f,false); reply(0,"{}",401); reply(1,"{}",409);
+        assertEquals(1,client.pendingCount()); assertEquals("x".repeat(43),data.get("token"));
     }
 }

@@ -33,7 +33,10 @@ class GameClientIntegrationTest {
                 "--spring.datasource.url=jdbc:h2:mem:clienttest;MODE=MySQL;DATABASE_TO_LOWER=TRUE",
                 "--spring.main.banner-mode=off","--logging.level.root=WARN")) {
             String url="http://127.0.0.1:"+server.getEnvironment().getProperty("local.server.port");
-            try(var a=new OnlineService(url,memory());var b=new OnlineService(url,memory())) {
+            Preferences previous=memory();
+            String oldId=java.util.UUID.randomUUID().toString();
+            previous.putString("playerId",oldId).putString("token","a".repeat(43)).flush();
+            try(var a=new OnlineService(url,previous);var b=new OnlineService(url,memory())) {
                 a.completed(new RunResult(true,4,20,300,10,802.8f,0,0,0,1,true,802.8f,1));
                 a.publish(a.latestClear,"LGH");
                 pump(callbacks,a,b,()->!a.lastPublishedRunId.isEmpty()&&!a.boardLoading);
@@ -44,6 +47,7 @@ class GameClientIntegrationTest {
                 assertEquals(2,a.board.entries().size());
                 assertEquals(b.playerId(),a.board.entries().get(0).playerId());
                 assertNotEquals(a.playerId(),b.playerId());
+                assertEquals(oldId,a.playerId());
                 assertEquals(2,a.board.personalBest().rank());
                 assertEquals(4,a.achievements.stream().filter(x->x.unlocked()).count());
                 assertEquals(1,b.achievements.stream().filter(x->x.unlocked()).count());

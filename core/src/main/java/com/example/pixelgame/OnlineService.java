@@ -27,6 +27,9 @@ final class OnlineService implements AutoCloseable {
     private PlayerCredentials credentials;
     private final List<Runnable> waitingForIdentity = new ArrayList<>();
     private final List<BiConsumer<Integer,String>> identityFailures = new ArrayList<>();
+    private final List<Runnable> recoveryActions = new ArrayList<>();
+    private final List<BiConsumer<Integer,String>> recoveryFailures = new ArrayList<>();
+    private boolean recovering;
     private final LinkedHashMap<String,RunSubmission> outbox = new LinkedHashMap<>();
     private final Set<Net.HttpRequest> requests = new HashSet<>();
     private boolean registering, sending, closed;
@@ -190,6 +193,37 @@ final class OnlineService implements AutoCloseable {
 
     private void request(String method, String path, String body, boolean authenticate,
             Consumer<JsonValue> success, BiConsumer<Integer,String> failure) {
+        request(method,path,body,authenticate,success,failure,true);
+    }
+
+    private void recoverIdentity(Runnable retry, BiConsumer<Integer,String> failure) {
+        recoveryActions.add(retry); recoveryFailures.add(failure);
+        if (recovering) return;
+        recovering = true;
+        StringWriter out = new StringWriter();
+        try {
+            JsonWriter writer = new JsonWriter(out); writer.setOutputType(JsonWriter.OutputType.json);
+            writer.object().set("playerId",credentials.playerId()).set("accessToken",credentials.accessToken()).pop().close();
+        } catch (IOException e) { throw new IllegalStateException(e); }
+        request("POST","/api/players/recover",out.toString(),false,json -> {
+            if (!credentials.playerId().equals(json.getString("playerId"))
+                    || !credentials.accessToken().equals(json.getString("accessToken")))
+                throw new IllegalStateException("Recovery identity mismatch");
+            recovering=false;
+            List<Runnable> actions=List.copyOf(recoveryActions);
+            recoveryActions.clear(); recoveryFailures.clear();
+            for(Runnable action:actions) action.run();
+        },(status,message) -> {
+            recovering=false;
+            List<BiConsumer<Integer,String>> failures=List.copyOf(recoveryFailures);
+            recoveryActions.clear(); recoveryFailures.clear();
+            for(var callback:failures) callback.accept(status==400||status==409?401:status,
+                    "플레이어 인증을 복구하지 못했습니다. 서버 버전과 기존 DB를 확인해 주세요.");
+        },false);
+    }
+
+    private void request(String method, String path, String body, boolean authenticate,
+            Consumer<JsonValue> success, BiConsumer<Integer,String> failure, boolean allowRecovery) {
         Net.HttpRequest req = new Net.HttpRequest(method);
         req.setUrl(baseUrl + path); req.setTimeOut(5000); req.setHeader("Accept", "application/json");
         if (authenticate) req.setHeader("Authorization", "Bearer " + credentials.accessToken());
@@ -205,6 +239,8 @@ final class OnlineService implements AutoCloseable {
                         try {
                             JsonValue json = new JsonReader().parse(text);
                             if (status >= 200 && status < 300) success.accept(json);
+                            else if(status==401 && authenticate && allowRecovery)
+                                recoverIdentity(() -> request(method,path,body,true,success,failure,false),failure);
                             else failure.accept(status, json.getString("message", "기록 요청을 처리하지 못했습니다."));
                         } catch (RuntimeException e) { failure.accept(status, "서버 응답을 읽지 못했습니다. 잠시 후 다시 시도해 주세요."); }
                     });
@@ -255,5 +291,6 @@ final class OnlineService implements AutoCloseable {
         closed = true;
         for (Net.HttpRequest request : List.copyOf(requests)) Gdx.net.cancelHttpRequest(request);
         requests.clear(); waitingForIdentity.clear(); identityFailures.clear();
+        recoveryActions.clear(); recoveryFailures.clear();
     }
 }
