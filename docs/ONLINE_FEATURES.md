@@ -13,13 +13,25 @@
 - Render의 비밀 환경변수에 `DB_URL`, `DB_USER`, `DB_PASSWORD`를 입력합니다. DB 연결정보·비밀번호는 Git이나 게임 배포물에 넣지 않습니다.
 - `SPRING_PROFILES_ACTIVE=postgres`, `SERVER_ADDRESS=0.0.0.0`을 사용합니다. Render의 `PORT` 값은 기존 서버 설정이 읽습니다. Docker 실행 이미지는 서버·공통 라이브러리만 포함하며 게임 이미지·DB 파일을 포함하지 않습니다.
 - `DB_URL`은 Neon 주소를 JDBC 형식으로 사용합니다. 예: `jdbc:postgresql://실제-Neon-호스트/neondb?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory`. 사용자·비밀번호는 별도 환경변수로 지정합니다.
-- 무료 Render 서버가 쉬고 있을 때 HTTPS 요청은 3초 간격으로 최대 12회 재시도합니다. 각 HTTP 요청 제한은 5초입니다. 게임은 계속 조작할 수 있고 랭킹·업적 화면에는 연결 준비 상태를 표시합니다. 등록 요청은 PC에 보존하며 Esc로 화면을 나가도 전송을 이어갑니다.
+- 무료 Render 서버가 쉬고 있을 때 HTTPS 요청은 3초 간격으로 요청별 최대 2분 동안 자동 재시도합니다. 성공 상태의 HTML 대기 화면과 일시적 HTTP 오류·통신 실패를 처리합니다. 실제 경과 시간을 기준으로 제한하므로 창을 최소화해도 대기 시간이 계속 늘어나지 않습니다. 개별 요청 제한은 5초이며 2분 한도에 가까워지면 남은 시간만 사용합니다. 재시도 요청이 진행 중일 때도 연결 준비 안내를 유지하며, 서버가 준비되면 새로고침 없이 기록을 표시합니다. 제한 시간이 지나면 오류를 안내하고 수동 재연결을 허용합니다. 등록 요청은 PC에 보존하며 Esc로 화면을 나가도 전송을 이어갑니다.
 - 팀원 확인: 각자 게임을 실행해 클리어 후 이니셜을 등록하고, 다른 노트북의 **여정의 기록 → 새로고침**에서 같은 기록이 보이는지 확인합니다. 서로 다른 실제 와이파이의 노트북 두 대를 이용한 최종 확인은 팀에서 수행합니다.
 - GitHub를 Public Git Repository URL로 연결한 Render 서비스는 코드 Push 후 **Manual Deploy → Deploy latest commit**으로 서버를 갱신합니다. 게임 코드의 수정본도 팀원들이 다시 내려받아야 합니다. DB 비밀번호 변경은 Render 환경변수에서만 처리합니다.
 
 PostgreSQL 검증은 실제 DB 연결정보를 테스트 전용 환경변수 `DEADLIGHT_TEST_PG_URL`, `DEADLIGHT_TEST_PG_USER`, `DEADLIGHT_TEST_PG_PASSWORD`로 전달한 뒤 `gradlew.bat server:test --tests '*GameClientIntegrationTest.postgresRankingAndIdentitySurviveServerRestart'`로 실행합니다. 테스트는 임의 이름의 격리 스키마를 만들고 정리하며 공개 랭킹에 테스트 기록을 추가하지 않습니다. 연결정보가 없으면 이 테스트는 건너뜁니다.
 
 무료 플랜의 대기 시간·용량·사용량 제한은 서비스 정책에 따릅니다. 원격 서버가 이용 가능한 동안 노트북을 꺼도 기록은 Neon에 보관되고 다른 사용자가 접속할 수 있습니다.
+
+## 팀원의 Windows 실행 준비
+
+Java 포함 Windows 실행본은 전체 ZIP을 압축 해제하고 그 안의 `PLAY.cmd`만 실행합니다. `Deadlight.jar`와 `runtime`을 함께 보관하며 별도 Java·Eclipse·Gradle 설치가 필요하지 않습니다. 이 배포물에는 개발 소스나 DB 비밀번호를 넣지 않습니다. Java 런타임은 HTTPS에 필요한 `jdk.crypto.ec`를 포함하며, 개발용 Gradle의 Construo 패키지 설정에도 같은 모듈을 지정합니다. 생성된 실행본은 `lwjgl3/build/portable`의 빌드 산출물이며 소스 커밋에는 포함하지 않습니다.
+
+소스 ZIP은 전체를 압축 해제하고 파일 탐색기에서 루트의 `PLAY.cmd`를 실행합니다. 공용 서버를 쓰는 팀원은 서버·DB·Render·Neon 계정이나 비밀번호를 준비하지 않습니다. 인터넷과 설치된 64비트 JDK 17 이상이 필요하며 개발 환경을 맞추려면 JDK 21을 권장합니다.
+
+`PLAY.cmd`, `PLAY_LAN.cmd`, `SERVER.cmd`는 공통 `RUN.cmd`와 `scripts/Run-Deadlight.ps1`을 사용합니다. 유효한 `JAVA_HOME`을 우선하고, PATH의 Java와 일반 JDK 설치 폴더(`Program Files/Java`, Eclipse Adoptium 등), 사용자 `.jdks`와 `.gradle/jdks`, Java 설치 레지스트리에서 컴파일러를 포함한 JDK를 찾습니다. 자동 탐색에서는 JDK 21을 우선합니다. 부모 CMD나 Windows의 사용자·시스템 환경변수는 변경하지 않습니다.
+
+Eclipse 자체에 들어 있는 실행용 JRE만 있고 JDK가 없다면 JDK를 별도로 설치해야 합니다. 이 경우 실행기는 설치 안내를 표시합니다. JDK 확인만 하려면 `PLAY.cmd -CheckJava`를 실행합니다. 게임 실행 오류가 발생하면 상세 스택 추적과 종료 코드를 출력하고 콘솔 창을 유지합니다. 이 콘솔의 오류를 확인해야 실제 종료 원인을 구분할 수 있습니다.
+
+Eclipse에서는 **File → Import → Gradle → Existing Gradle Project**로 루트를 가져와 `core`, `lwjgl3`, `online-common`, `server`를 함께 연결합니다. Gradle Wrapper를 사용하고 **Gradle Tasks → lwjgl3 → application → run**으로 실행합니다. `.cmd` 파일을 Eclipse 편집기에서 열어 보는 것은 실행이 아닙니다.
 
 ## 같은 와이파이에서 함께 사용하기
 

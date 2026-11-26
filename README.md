@@ -12,8 +12,14 @@ Java 17 이상 / libGDX 데스크톱 2D 액션 탐색 게임.
 
 ## 실행
 
+Java를 포함한 **Windows 실행 전용 ZIP**을 받은 경우 전체 압축을 해제한 뒤 그 안의 `PLAY.cmd`만 실행합니다. `Deadlight.jar`와 `runtime` 폴더를 함께 보관합니다. 이 실행본은 Java·Eclipse·Gradle 설치가 필요하지 않으며 인터넷으로 공용 기록 서버에 연결합니다. 아래 내용은 개발 소스를 실행하는 방법입니다.
+
 프로젝트 폴더에서 `gradlew.bat lwjgl3:run` 또는 `PLAY.cmd`를 실행합니다.
 Eclipse에서는 F5로 새로고침한 뒤 Gradle Tasks → lwjgl3 → application → run을 실행합니다.
+
+Windows에서는 파일 탐색기에서 `PLAY.cmd`를 더블클릭하면 설치된 64비트 JDK 17 이상을 자동으로 찾습니다. `JAVA_HOME`, PATH, 일반 JDK 설치 폴더, IntelliJ의 `.jdks`, Gradle의 `.gradle/jdks`, Java 설치 레지스트리를 확인하며 JDK 21을 우선합니다(유효한 `JAVA_HOME`은 존중합니다). JRE만 있으면 JDK 설치가 필요합니다. `RUN.cmd`와 `scripts/Run-Deadlight.ps1`도 함께 받아야 합니다. 실행 오류가 나면 콘솔 창을 유지하고 상세 오류를 표시합니다. Eclipse 안에서 `.cmd`를 더블클릭하면 편집기로 열릴 수 있습니다.
+
+무료 클라우드 서버가 쉬고 있으면 요청별로 최대 2분 동안 자동 재시도하며 **서버를 준비 중**이라고 표시합니다. 서버가 준비되면 새로고침 없이 기록을 불러옵니다. 제한 시간이 지나면 다시 연결할 수 있고, 미전송 클리어 기록은 유지합니다.
 
 ## 기본 조작
 

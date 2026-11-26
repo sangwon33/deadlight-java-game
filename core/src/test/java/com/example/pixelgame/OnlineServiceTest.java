@@ -27,6 +27,7 @@ class OnlineServiceTest {
     Net oldNet;
     Input oldInput;
     Set<Integer> keys=Set.of();
+    long nowNanos;
     static final String ACK="{\"published\":false,\"duplicate\":false,\"achievements\":[],\"newlyUnlocked\":[]}";
 
     @BeforeEach void setup() {
@@ -58,6 +59,10 @@ class OnlineServiceTest {
     }
     @AfterEach void cleanup() { Gdx.app=oldApp; Gdx.net=oldNet; Gdx.input=oldInput; }
     RunResult clear() { return new RunResult(true,4,20,300,10,803.28f,0,0,0,1,true,803.28f,1); }
+    OnlineService cloud() { return new OnlineService("https://test.invalid",prefs,()->nowNanos); }
+    void advance(OnlineService client,float seconds) {
+        nowNanos+=(long)(seconds*1_000_000_000d); client.update(seconds,false);
+    }
     void reply(int index,String body) {
         reply(index,body,200);
     }
@@ -171,30 +176,69 @@ class OnlineServiceTest {
     }
 
     @Test void sleepingCloudServerRetriesAndFinishesLoading() {
-        OnlineService client=new OnlineService("https://test.invalid",prefs); client.loadBoard(1);
+        OnlineService client=cloud(); client.loadBoard(1);
         reply(0,"<html>starting</html>",503);
         assertTrue(client.boardLoading); assertTrue(client.waitingForServer());
-        client.update(3.1f,false); assertEquals(2,calls.size());
+        advance(client,3.1f); assertEquals(2,calls.size());
+        assertTrue(client.waitingForServer()); // Stays visible while the next HTTP request is in flight.
         reply(1,"{\"entries\":[],\"personalBest\":null}");
         assertFalse(client.boardLoading); assertEquals("",client.boardError);
+        assertFalse(client.waitingForServer());
     }
 
-    @Test void cloudRetriesHaveAFiniteLimit() {
-        OnlineService client=new OnlineService("https://test.invalid",prefs); client.loadBoard(1);
-        for(int i=0;i<13;i++) { reply(i,"{}",503); if(i<12)client.update(3.1f,false); }
-        assertEquals(13,calls.size()); assertFalse(client.boardLoading); assertFalse(client.boardError.isBlank());
+    @Test void fastWarmupResponsesCanWaitBeyondOneMinuteAndLoadWithoutRefresh() {
+        OnlineService client=cloud(); client.loadBoard(1);
+        for(int i=0;i<22;i++) { reply(i,"<!doctype html><html>starting</html>",200); advance(client,3); }
+        assertTrue(client.boardLoading); assertTrue(client.boardError.isEmpty());
+        reply(22,"{\"entries\":[{\"rank\":1,\"playerId\":\"other-player\",\"initials\":\"HSG\",\"durationMillis\":103400,\"damageTaken\":67}],\"personalBest\":null}");
+        assertFalse(client.boardLoading); assertFalse(client.waitingForServer());
+        assertEquals("HSG",client.board.entries().get(0).initials());
+    }
+
+    @Test void cloudRetriesStopAtTwoMinutesEvenWithImmediateFailures() {
+        OnlineService client=cloud(); client.loadBoard(1);
+        for(int i=0;i<40;i++) { reply(i,"{}",503); if(i<39)advance(client,3); }
+        assertEquals(3000,calls.get(39).request().getTimeOut());
+        advance(client,3);
+        assertEquals(40,calls.size()); assertFalse(client.boardLoading); assertFalse(client.waitingForServer());
+        assertTrue(client.boardError.contains("대기 시간이 초과"));
+        client.loadBoard(1); reply(40,"{\"entries\":[],\"personalBest\":null}");
+        assertFalse(client.boardLoading); assertTrue(client.boardError.isEmpty());
     }
 
     @Test void cloudTimeoutKeepsOriginalSubmissionUntilAcknowledged() {
-        OnlineService client=new OnlineService("https://test.invalid",prefs); client.completed(clear()); client.update(.1f,false);
+        OnlineService client=cloud(); client.completed(clear()); client.update(.1f,false);
         String body=calls.get(0).request().getContent(); calls.get(0).listener().failed(new RuntimeException("timeout"));
-        assertEquals(1,client.pendingCount()); client.update(3.1f,false);
+        assertEquals(1,client.pendingCount()); advance(client,3.1f);
         assertEquals(body,calls.get(1).request().getContent()); reply(1,ACK); assertEquals(0,client.pendingCount());
     }
 
     @Test void closingClientCancelsDelayedCloudRequests() {
-        OnlineService client=new OnlineService("https://test.invalid",prefs); client.loadBoard(1);
-        reply(0,"{}",503); client.close(); client.update(10,false); assertEquals(1,calls.size());
+        OnlineService client=cloud(); client.loadBoard(1);
+        reply(0,"{}",503); client.close(); advance(client,10); assertEquals(1,calls.size());
+        assertFalse(client.waitingForServer());
+    }
+
+    @Test void aSuspendedWindowDoesNotExtendTheDeadlineOrDiscardAClear() {
+        OnlineService client=cloud(); client.completed(clear()); client.update(.1f,false);
+        String id=client.latestClear.runId(); reply(0,"starting",503);
+        advance(client,121);
+        assertEquals(1,calls.size()); assertEquals(1,client.pendingCount());
+        assertEquals(id,client.latestClear.runId()); assertEquals(1,client.errorSequence);
+        assertFalse(client.waitingForServer());
+    }
+
+    @Test void malformedSuccessIsReportedWithoutReplayingASuccessfulPost() {
+        OnlineService client=cloud(); client.completed(clear()); client.update(.1f,false);
+        reply(0,"{}"); advance(client,4);
+        assertEquals(1,calls.size()); assertEquals(1,client.pendingCount());
+        assertTrue(client.lastError.contains("게임 버전"));
+    }
+
+    @Test void nonJsonEdgeRejectionDoesNotDiscardTheQueuedClear() {
+        OnlineService client=cloud(); client.completed(clear()); client.update(.1f,false);
+        reply(0,"<html>proxy rejected request</html>",400);
+        assertEquals(1,client.pendingCount()); assertTrue(client.lastError.contains("HTTP 400"));
     }
 
     @Test void playerCanLeaveRegistrationWhileUploadIsPending() {

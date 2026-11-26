@@ -154,7 +154,8 @@ construo {
   jlink {
     guessModulesFromJar.set(false)
     // You may need to add more modules, as needed.
-    modules.addAll("java.base", "java.management", "java.desktop", "jdk.unsupported")
+    // The bundled runtime must also support the HTTPS ranking server's EC TLS certificates.
+    modules.addAll("java.base", "java.management", "java.desktop", "java.logging", "java.prefs", "jdk.unsupported", "jdk.crypto.ec")
   }
 
   targets.configure {

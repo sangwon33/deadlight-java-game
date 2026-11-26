@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Net;
 import com.badlogic.gdx.Preferences;
@@ -24,6 +25,9 @@ import com.badlogic.gdx.utils.JsonWriter;
 final class OnlineService implements AutoCloseable {
     private final Preferences prefs;
     private final String baseUrl;
+    private final LongSupplier nanoClock;
+    private static final long CLOUD_WAIT_NANOS = 120_000_000_000L;
+    private static final long RETRY_INTERVAL_NANOS = 3_000_000_000L;
     private PlayerCredentials credentials;
     private final List<Runnable> waitingForIdentity = new ArrayList<>();
     private final List<BiConsumer<Integer,String>> identityFailures = new ArrayList<>();
@@ -33,10 +37,16 @@ final class OnlineService implements AutoCloseable {
     private final LinkedHashMap<String,RunSubmission> outbox = new LinkedHashMap<>();
     private final Set<Net.HttpRequest> requests = new HashSet<>();
     private final List<PendingRetry> delayedRequests = new ArrayList<>();
+    private final Set<RetryWindow> waitingRequests = new HashSet<>();
+    private static final class RetryWindow {
+        final long startedAt;
+        final boolean cloud;
+        RetryWindow(long startedAt, boolean cloud) { this.startedAt=startedAt; this.cloud=cloud; }
+    }
     private static final class PendingRetry {
-        float remaining = 3;
+        final long dueAt;
         final Runnable action;
-        PendingRetry(Runnable action) { this.action=action; }
+        PendingRetry(long dueAt, Runnable action) { this.dueAt=dueAt; this.action=action; }
     }
     private boolean registering, sending, closed;
     private float retryDelay, toastSeconds;
@@ -54,7 +64,10 @@ final class OnlineService implements AutoCloseable {
         this(url, Gdx.app.getPreferences("deadlight.online." + UUID.nameUUIDFromBytes(url.getBytes(java.nio.charset.StandardCharsets.UTF_8))));
     }
     OnlineService(String url, Preferences prefs) {
-        baseUrl = url; this.prefs = prefs;
+        this(url,prefs,System::nanoTime);
+    }
+    OnlineService(String url, Preferences prefs, LongSupplier nanoClock) {
+        baseUrl = url; this.prefs = prefs; this.nanoClock=nanoClock;
         String token = prefs.getString("token", ""), id = prefs.getString("playerId", "");
         if (!token.isEmpty() && !id.isEmpty()) credentials = new PlayerCredentials(id, token);
         try {
@@ -113,13 +126,14 @@ final class OnlineService implements AutoCloseable {
 
     void retryNow() { retryDelay = 0; lastError = ""; }
     void update(float dt, boolean showNotifications) {
+        // A retry failure below may start a fresh 30-second outbox delay in this frame.
+        retryDelay = Math.max(0, retryDelay - Math.max(0, dt));
         List<Runnable> ready = new ArrayList<>();
         for(int i=delayedRequests.size()-1;i>=0;i--) {
-            PendingRetry pending=delayedRequests.get(i); pending.remaining-=Math.max(0,dt);
-            if(pending.remaining<=0) { delayedRequests.remove(i); ready.add(pending.action); }
+            PendingRetry pending=delayedRequests.get(i);
+            if(nanoClock.getAsLong()-pending.dueAt>=0) { delayedRequests.remove(i); ready.add(pending.action); }
         }
         if(!closed) for(Runnable action:ready) action.run();
-        retryDelay = Math.max(0, retryDelay - Math.max(0, dt));
         if (showNotifications) toastSeconds = Math.max(0, toastSeconds - dt);
         if (!closed && !sending && !outbox.isEmpty() && retryDelay == 0) {
             sending = true;
@@ -236,47 +250,86 @@ final class OnlineService implements AutoCloseable {
 
     private void request(String method, String path, String body, boolean authenticate,
             Consumer<JsonValue> success, BiConsumer<Integer,String> failure, boolean allowRecovery) {
-        request(method,path,body,authenticate,success,failure,allowRecovery,baseUrl.startsWith("https://")?12:0);
+        request(method,path,body,authenticate,success,failure,allowRecovery,
+                new RetryWindow(nanoClock.getAsLong(),baseUrl.startsWith("https://")));
     }
 
+    private long remaining(RetryWindow window) {
+        return CLOUD_WAIT_NANOS-(nanoClock.getAsLong()-window.startedAt);
+    }
+    private static String preparationTimeout() {
+        return "서버 연결 대기 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.";
+    }
     private void request(String method, String path, String body, boolean authenticate,
-            Consumer<JsonValue> success, BiConsumer<Integer,String> failure, boolean allowRecovery, int retries) {
+            Consumer<JsonValue> success, BiConsumer<Integer,String> failure, boolean allowRecovery, RetryWindow window) {
         if(closed)return;
+        if(window.cloud&&remaining(window)<=0) {
+            waitingRequests.remove(window); failure.accept(0,preparationTimeout()); return;
+        }
         Net.HttpRequest req = new Net.HttpRequest(method);
-        req.setUrl(baseUrl + path); req.setTimeOut(5000); req.setHeader("Accept", "application/json");
+        int timeout=window.cloud?(int)Math.max(1,Math.min(5000,remaining(window)/1_000_000L)):5000;
+        req.setUrl(baseUrl + path); req.setTimeOut(timeout); req.setHeader("Accept", "application/json");
         if (authenticate) req.setHeader("Authorization", "Bearer " + credentials.accessToken());
         if (body != null) { req.setHeader("Content-Type", "application/json; charset=UTF-8"); req.setContent(body); }
         requests.add(req);
-        try {
-            Gdx.net.sendHttpRequest(req, new Net.HttpResponseListener() {
+        Net.HttpResponseListener listener=new Net.HttpResponseListener() {
                 @Override public void handleHttpResponse(Net.HttpResponse response) {
-                    int status = response.getStatus().getStatusCode();
-                    String text = response.getResultAsString();
+                    final int status;
+                    final String text;
+                    try { status=response.getStatus().getStatusCode(); text=response.getResultAsString(); }
+                    catch(RuntimeException e) { failed(e); return; }
                     Gdx.app.postRunnable(() -> {
                         requests.remove(req); if (closed) return;
-                        if((status==408||status==429||status==500||status==502||status==503||status==504)&&retry()) return;
+                        if(window.cloud&&(status==408||status==429||status==500||status==502||status==503||status==504)) {
+                            if(!retry()) finish(0,preparationTimeout());
+                            return;
+                        }
+                        // Render may return a successful HTML loading page before the JSON API is ready.
+                        if(status>=200&&status<300&&(text==null||text.isBlank()||text.stripLeading().startsWith("<"))) {
+                            if(!retry()) finish(0,window.cloud?preparationTimeout():"기록 서버가 올바른 응답을 보내지 않았습니다.");
+                            return;
+                        }
+                        JsonValue json;
                         try {
-                            JsonValue json = new JsonReader().parse(text);
+                            json = new JsonReader().parse(text);
+                            if(json==null||(!json.isObject()&&!json.isArray())) throw new IllegalArgumentException();
+                        } catch(RuntimeException e) {
+                            // An edge/proxy HTML error is not proof that a queued clear is invalid.
+                            finish(0,"기록 서버 응답 형식을 확인할 수 없습니다. (HTTP "+status+")"); return;
+                        }
+                        waitingRequests.remove(window);
+                        try {
                             if (status >= 200 && status < 300) success.accept(json);
                             else if(status==401 && authenticate && allowRecovery)
                                 recoverIdentity(() -> request(method,path,body,true,success,failure,false),failure);
-                            else failure.accept(status, json.getString("message", "기록 요청을 처리하지 못했습니다."));
+                            else finish(json.isObject()&&json.has("message")?status:0,
+                                    json.getString("message", "기록 요청을 처리하지 못했습니다. (HTTP "+status+")"));
                         } catch (RuntimeException e) {
-                            if(status>=200&&status<300&&retry()) return;
-                            failure.accept(status, "서버 응답을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.");
+                            // Contract/local handling errors are not server warm-up; do not replay successful POSTs.
+                            finish(0,"서버 응답을 읽지 못했습니다. 게임 버전과 저장 설정을 확인해 주세요.");
                         }
                     });
                 }
                 @Override public void failed(Throwable error) { fail("기록 서버에 연결하지 못했습니다. 서버 실행과 연결을 확인해 주세요."); }
                 @Override public void cancelled() { fail("기록 요청이 취소되었습니다. 다시 시도해 주세요."); }
                 private boolean retry() {
-                    if(retries<=0||closed)return false;
-                    delayedRequests.add(new PendingRetry(() -> request(method,path,body,authenticate,success,failure,allowRecovery,retries-1)));
+                    if(!window.cloud||closed||remaining(window)<=0)return false;
+                    waitingRequests.add(window);
+                    long delay=Math.min(RETRY_INTERVAL_NANOS,remaining(window));
+                    delayedRequests.add(new PendingRetry(nanoClock.getAsLong()+delay,
+                            () -> request(method,path,body,authenticate,success,failure,allowRecovery,window)));
                     return true;
                 }
-                private void fail(String message) { Gdx.app.postRunnable(() -> { requests.remove(req); if (!closed&&!retry()) failure.accept(0, message); }); }
-            });
-        } catch (RuntimeException e) { requests.remove(req); failure.accept(0, "기록 서버에 연결하지 못했습니다."); }
+                private void finish(int status,String message) { waitingRequests.remove(window); failure.accept(status,message); }
+                private void fail(String message) {
+                    Gdx.app.postRunnable(() -> {
+                        requests.remove(req);
+                        if (!closed&&!retry()) finish(0,window.cloud?preparationTimeout():message);
+                    });
+                }
+            };
+        try { Gdx.net.sendHttpRequest(req,listener); }
+        catch (RuntimeException e) { listener.failed(e); }
     }
 
     private void persistOutbox() {
@@ -314,12 +367,13 @@ final class OnlineService implements AutoCloseable {
         return List.copyOf(out);
     }
     boolean toastVisible() { return toastSeconds > 0; }
-    boolean waitingForServer() { return !delayedRequests.isEmpty(); }
+    boolean waitingForServer() { return !waitingRequests.isEmpty(); }
     @Override public void close() {
         closed = true;
         for (Net.HttpRequest request : List.copyOf(requests)) Gdx.net.cancelHttpRequest(request);
         requests.clear(); waitingForIdentity.clear(); identityFailures.clear();
         recoveryActions.clear(); recoveryFailures.clear();
         delayedRequests.clear();
+        waitingRequests.clear();
     }
 }
