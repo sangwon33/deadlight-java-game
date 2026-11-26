@@ -1,0 +1,6 @@
+{
+  "Version": "2026.11.2",
+  "Source": "https://github.com/cloudflare/cloudflared/releases/download/2026.11.2/cloudflared-windows-amd64.exe",
+  "Sha256": "555b46c85582461d189cac30d14ad05480d612613801be9f110b8ce08c5b2113",
+  "VerifiedAgainstGitHubRelease": true
+}

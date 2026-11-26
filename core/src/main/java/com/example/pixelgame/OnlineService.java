@@ -61,7 +61,9 @@ final class OnlineService implements AutoCloseable {
 
     OnlineService() { this(configuredUrl()); }
     private OnlineService(String url) {
-        this(url, Gdx.app.getPreferences("deadlight.online." + UUID.nameUUIDFromBytes(url.getBytes(java.nio.charset.StandardCharsets.UTF_8))));
+        // One host keeps one player identity/outbox even when the temporary tunnel URL changes.
+        // Keep the previous cloud and experimental profiles intact.
+        this(url, Gdx.app.getPreferences("deadlight.hosted.online"));
     }
     OnlineService(String url, Preferences prefs) {
         this(url,prefs,System::nanoTime);
@@ -86,7 +88,7 @@ final class OnlineService implements AutoCloseable {
     private static String configuredUrl() {
         String url = System.getProperty("deadlight.serverUrl");
         if (url == null || url.isBlank()) url = System.getenv("DEADLIGHT_SERVER_URL");
-        if (url == null || url.isBlank()) url = "https://deadlight-java-game.onrender.com";
+        if (url == null || url.isBlank()) url = "http://127.0.0.1:8080";
         url = url.trim().replaceAll("/+$", "");
         URI uri = URI.create(url);
         if (!("http".equals(uri.getScheme()) || "https".equals(uri.getScheme())) || uri.getHost() == null
@@ -263,6 +265,9 @@ final class OnlineService implements AutoCloseable {
     private void request(String method, String path, String body, boolean authenticate,
             Consumer<JsonValue> success, BiConsumer<Integer,String> failure, boolean allowRecovery, RetryWindow window) {
         if(closed)return;
+        if(Boolean.getBoolean("deadlight.offline")) {
+            failure.accept(0,"오프라인 모드입니다. 서버에 연결하려면 게임을 다시 실행해 주세요."); return;
+        }
         if(window.cloud&&remaining(window)<=0) {
             waitingRequests.remove(window); failure.accept(0,preparationTimeout()); return;
         }

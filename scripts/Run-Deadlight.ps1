@@ -1,7 +1,8 @@
 param(
     [ValidateSet('lwjgl3:run', 'lwjgl3:lanRun', 'server:run')]
     [string]$Task = 'lwjgl3:run',
-    [switch]$CheckJava
+    [switch]$CheckJava,
+    [switch]$BuildPortable
 )
 
 # Shared by all Windows launchers. Changes apply only to this child process.
@@ -115,6 +116,18 @@ try {
     $env:PATH = (Join-Path $selected.Home 'bin') + ';' + $env:PATH
     Write-Host ('Using JDK {0}: {1}' -f $selected.Major, $selected.Home)
     if ($CheckJava) { exit 0 }
+    if ($BuildPortable) {
+        & (Join-Path $PSScriptRoot 'Build-Portable.ps1') -JdkHome $selected.Home
+        exit $LASTEXITCODE
+    }
+    if ($Task -eq 'server:run') {
+        # SERVER.cmd always runs the host's persistent local database, regardless of cloud env vars.
+        $env:SPRING_PROFILES_ACTIVE = ''
+        $env:DB_URL = 'jdbc:h2:file:' + (Join-Path $projectRoot 'data\deadlight').Replace('\','/') + ';MODE=MySQL;DATABASE_TO_LOWER=TRUE'
+        $env:DB_USER = 'sa'
+        $env:DB_PASSWORD = ''
+        if ([string]::IsNullOrWhiteSpace($env:SERVER_ADDRESS)) { $env:SERVER_ADDRESS = '127.0.0.1' }
+    }
     Set-Location -LiteralPath $projectRoot
     & (Join-Path $projectRoot 'gradlew.bat') '-p' $projectRoot $Task '--console=plain' '--stacktrace'
     exit $LASTEXITCODE

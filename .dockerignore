@@ -17,4 +17,7 @@ lwjgl3/src
 lwjgl3/icons
 src
 icons
+tools
+tunnel-address.txt
+logs
 *.md

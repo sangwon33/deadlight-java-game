@@ -70,7 +70,9 @@ class RecordServerTest {
         assertEquals(201,response.statusCode());
         assertTrue(response.body().contains("accessToken"));
         assertEquals(401,request("POST","/api/runs",null,json(run(11,1,10000,0,0,0,true))).statusCode());
-        assertEquals(200,request("GET","/api/health",null,null).statusCode());
+        var health=request("GET","/api/health",null,null);
+        assertEquals(200,health.statusCode());
+        assertTrue(health.body().contains("\"service\":\"deadlight-records\""));
         PlayerCredentials user=service.register();
         assertEquals(user.playerId(),service.authenticate("Bearer "+user.accessToken()));
         assertNotEquals(user.accessToken(),db.queryForObject("SELECT token_hash FROM players WHERE id = ?",String.class,user.playerId()));

@@ -1,0 +1,27 @@
+Deadlight - Windows 실행 안내
+
+ZIP 전체를 압축 해제하고 runtime, server, scripts, tools 폴더와 파일을 함께 보관하세요.
+Java 포함 실행 ZIP은 Java, Eclipse, Gradle 설치가 필요하지 않습니다.
+GitHub 개발 소스는 64비트 JDK 17 이상이 필요합니다.
+
+[서버를 운영하는 사람]
+1. SERVER.cmd를 실행하고 Started RecordServer 메시지를 기다리세요.
+2. TUNNEL.cmd를 실행하세요.
+3. tunnel-address.txt에 저장된 https://...trycloudflare.com 주소를 팀원에게 보내세요.
+4. 본인도 게임을 하려면 PLAY_HOST.cmd를 실행하세요.
+5. 서버 창, 터널 창, 노트북과 인터넷을 켜두세요. 게임 창은 닫아도 됩니다.
+
+[팀원]
+1. PLAY.cmd를 실행하세요.
+2. 전달받은 HTTPS 주소를 붙여 넣고 '연결 후 실행'을 누르세요.
+3. 게임에서 '여정의 기록'과 '여행자의 업적'을 확인하세요.
+팀원은 SERVER.cmd나 TUNNEL.cmd를 실행하지 않습니다.
+Enter는 연결, Tab은 항목 이동, Esc는 닫기입니다.
+연결 없이 게임을 하려면 '오프라인 실행'을 선택하세요.
+
+서로 다른 와이파이에서도 접속할 수 있습니다.
+터널을 다시 켜면 주소가 바뀔 수 있으니 새 주소를 전달하세요.
+서버와 터널의 종료는 각 콘솔에서 Ctrl+C입니다.
+랭킹과 업적은 서버 폴더의 data/deadlight.mv.db에 저장되며 재시작해도 남습니다.
+서버 폴더를 옮길 때는 서버를 종료한 뒤 data 폴더를 백업해 함께 옮기세요.
+자세한 설명은 HOSTED_SERVER.md를 참고하세요. 개발 소스에서는 docs 폴더에 있습니다.

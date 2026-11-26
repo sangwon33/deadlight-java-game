@@ -1,10 +1,8 @@
-> 공용 기록 서버: 게임은 기본으로 `https://deadlight-java-game.onrender.com`에 연결합니다. 각자 다른 와이파이에서도 랭킹·도전과제를 공유하며 `SERVER.cmd`를 별도로 실행할 필요가 없습니다. 무료 서버가 쉬고 있으면 첫 접속에 1분 정도 걸릴 수 있습니다. [온라인 안내](docs/ONLINE_FEATURES.md)
-
-> 같은 와이파이 공유: 서버 노트북은 `SERVER_LAN.cmd`, 참가자는 `PLAY_LAN.cmd`를 실행합니다. 자세한 순서는 [온라인 기능 안내](docs/ONLINE_FEATURES.md)를 참고하세요.
+> 기록 서버: 호스트 한 명이 **SERVER.cmd → TUNNEL.cmd**를 실행하고, 팀원은 **PLAY.cmd**에서 전달받은 HTTPS 주소를 입력합니다. 서로 다른 와이파이에서도 랭킹·도전과제를 공유합니다. [실행 안내](docs/HOSTED_SERVER.md)
 
 # Deadlight
 
-온라인 클리어 시간 랭킹·도전과제: 기존 `PLAY.cmd` 또는 IntelliJ의 `Lwjgl3Launcher`로 게임을 실행하세요. 로비의 **여정의 기록**과 **여행자의 업적**이 공용 서버에 연결됩니다. 실행·DB·공용 서버 연결·MySQL 설정은 [온라인 기능 안내](docs/ONLINE_FEATURES.md)를 참고하세요.
+온라인 클리어 시간 랭킹·도전과제는 한 대의 노트북에서 운영하는 Spring Boot 서버에 저장합니다. 팀원은 게임과 같은 그림·폰트·문양을 사용한 Swing 연결 창에서 서버 주소를 입력하고, 로비의 **여정의 기록**과 **여행자의 업적**을 사용합니다. [기능·DB 설명](docs/ONLINE_FEATURES.md)
 
 Java 17 이상 / libGDX 데스크톱 2D 액션 탐색 게임.
 
@@ -12,14 +10,13 @@ Java 17 이상 / libGDX 데스크톱 2D 액션 탐색 게임.
 
 ## 실행
 
-Java를 포함한 **Windows 실행 전용 ZIP**을 받은 경우 전체 압축을 해제한 뒤 그 안의 `PLAY.cmd`만 실행합니다. `Deadlight.jar`와 `runtime` 폴더를 함께 보관합니다. 이 실행본은 Java·Eclipse·Gradle 설치가 필요하지 않으며 인터넷으로 공용 기록 서버에 연결합니다. 아래 내용은 개발 소스를 실행하는 방법입니다.
+Java를 포함한 **Windows 실행 ZIP**은 전체 압축을 해제해 사용합니다. 팀원은 `PLAY.cmd`를 실행해 호스트가 전달한 주소를 입력합니다. 호스트는 `SERVER.cmd`와 `TUNNEL.cmd`, 본인 게임은 `PLAY_HOST.cmd`로 실행합니다. 실행본의 폴더와 파일을 함께 보관하며 Java·Eclipse·Gradle 설치는 필요하지 않습니다. `BUILD_PORTABLE.cmd`로 `build/portable`에 실행 ZIP을 만들 수 있습니다.
 
-프로젝트 폴더에서 `gradlew.bat lwjgl3:run` 또는 `PLAY.cmd`를 실행합니다.
-Eclipse에서는 F5로 새로고침한 뒤 Gradle Tasks → lwjgl3 → application → run을 실행합니다.
+개발 소스에서는 `PLAY.cmd` / `gradlew.bat lwjgl3:lanRun`이 팀원용 연결 창을 열고, `PLAY_HOST.cmd` / `gradlew.bat lwjgl3:run`이 로컬 서버에 바로 연결합니다. IntelliJ의 `Lwjgl3Launcher`도 호스트용이며, 팀원은 `LanLauncher` 또는 Gradle의 `lanRun`을 실행합니다. Eclipse에서는 Gradle 프로젝트로 가져와 같은 작업을 실행합니다.
 
 Windows에서는 파일 탐색기에서 `PLAY.cmd`를 더블클릭하면 설치된 64비트 JDK 17 이상을 자동으로 찾습니다. `JAVA_HOME`, PATH, 일반 JDK 설치 폴더, IntelliJ의 `.jdks`, Gradle의 `.gradle/jdks`, Java 설치 레지스트리를 확인하며 JDK 21을 우선합니다(유효한 `JAVA_HOME`은 존중합니다). JRE만 있으면 JDK 설치가 필요합니다. `RUN.cmd`와 `scripts/Run-Deadlight.ps1`도 함께 받아야 합니다. 실행 오류가 나면 콘솔 창을 유지하고 상세 오류를 표시합니다. Eclipse 안에서 `.cmd`를 더블클릭하면 편집기로 열릴 수 있습니다.
 
-무료 클라우드 서버가 쉬고 있으면 요청별로 최대 2분 동안 자동 재시도하며 **서버를 준비 중**이라고 표시합니다. 서버가 준비되면 새로고침 없이 기록을 불러옵니다. 제한 시간이 지나면 다시 연결할 수 있고, 미전송 클리어 기록은 유지합니다.
+서버 창·터널 창·호스트 노트북과 인터넷을 유지해야 온라인 기능을 사용할 수 있습니다. 게임 창은 닫아도 됩니다. DB는 프로젝트 또는 실행본의 `data/deadlight.mv.db`에 남으므로 서버 재시작으로 랭킹이 초기화되지 않습니다. 터널 주소가 바뀌면 새 주소만 다시 전달합니다. **오프라인 실행**은 연결 없이 게임을 시작하고 미전송 기록을 보관합니다.
 
 ## 기본 조작
 

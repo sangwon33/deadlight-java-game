@@ -17,5 +17,8 @@ dependencies {
   testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.named('run') { workingDir = projectDir }
+tasks.named('run') {
+  workingDir = rootProject.projectDir
+  systemProperty 'deadlight.dataDir', rootProject.file('data').absolutePath
+}
 tasks.named('test') { useJUnitPlatform() }

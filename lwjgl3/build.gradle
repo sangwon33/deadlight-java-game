@@ -30,6 +30,9 @@ if (JavaVersion.current().isJava9Compatible()) {
 }
 
 dependencies {
+  testImplementation platform('org.springframework.boot:spring-boot-dependencies:4.0.10')
+  testImplementation 'org.junit.jupiter:junit-jupiter'
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
   implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
   implementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
   implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
@@ -52,6 +55,9 @@ dependencies {
 }
 
 def os = System.properties['os.name'].toLowerCase(Locale.ROOT)
+
+tasks.named('test') { useJUnitPlatform() }
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 
 tasks.register('lanRun', JavaExec) {
   dependsOn tasks.named('classes')

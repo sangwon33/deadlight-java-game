@@ -247,4 +247,40 @@ class OnlineServiceTest {
         assertEquals(OnlineScreen.Action.BACK,press(screen,client,Input.Keys.ESCAPE));
         assertEquals(1,client.pendingCount());
     }
+
+    @Test void changingTunnelAddressPreservesIdentityAndPendingClear() {
+        String previous=System.getProperty("deadlight.serverUrl");
+        ArrayList<String> profiles=new ArrayList<>();
+        Gdx.app=(Application)Proxy.newProxyInstance(getClass().getClassLoader(),new Class[]{Application.class},(p,m,a)->{
+            if(m.getName().equals("getPreferences")) {profiles.add((String)a[0]);return prefs;}
+            if(m.getName().equals("postRunnable")) {((Runnable)a[0]).run();return null;}
+            throw new UnsupportedOperationException(m.getName());
+        });
+        try {
+            System.setProperty("deadlight.serverUrl","https://first.trycloudflare.com");
+            OnlineService first=new OnlineService();first.completed(clear());
+            String runId=first.latestClear.runId();first.close();
+            System.setProperty("deadlight.serverUrl","https://second.trycloudflare.com");
+            OnlineService reconnected=new OnlineService();
+            assertEquals(2,profiles.size());assertEquals(profiles.get(0),profiles.get(1));
+            assertEquals("test-player",reconnected.playerId());
+            assertEquals(runId,reconnected.latestClear.runId());assertEquals(1,reconnected.pendingCount());
+            reconnected.close();
+        } finally {
+            if(previous==null)System.clearProperty("deadlight.serverUrl");else System.setProperty("deadlight.serverUrl",previous);
+        }
+    }
+
+    @Test void offlineModePreservesClearsAndMakesNoHttpRequests() {
+        String previous=System.getProperty("deadlight.offline");
+        try {
+            System.setProperty("deadlight.offline","true");
+            OnlineService client=new OnlineService("http://localhost:8080",prefs);
+            client.completed(clear());client.loadBoard(1);client.update(.1f,false);
+            assertTrue(calls.isEmpty());assertEquals(1,client.pendingCount());
+            assertFalse(client.boardLoading);assertTrue(client.boardError.contains("오프라인"));
+        } finally {
+            if(previous==null)System.clearProperty("deadlight.offline");else System.setProperty("deadlight.offline",previous);
+        }
+    }
 }

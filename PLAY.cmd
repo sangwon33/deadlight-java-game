@@ -1,3 +1,3 @@
 @echo off
-call "%~dp0RUN.cmd" -Task lwjgl3:run %*
+call "%~dp0RUN.cmd" -Task lwjgl3:lanRun %*
 exit /b %errorlevel%

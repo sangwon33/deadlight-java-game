@@ -1,4 +1,8 @@
 ## Gradle:
+/tools/*.exe
+/tools/*.download
+/tunnel-address.txt
+/logs/
 /data/
 *.mv.db
 *.trace.db

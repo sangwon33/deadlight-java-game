@@ -14,7 +14,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 public class RecordController {
     private final RecordService service;
     public RecordController(RecordService service) { this.service = service; }
-    @GetMapping("/health") public Map<String,String> health() { return Map.of("status", "ok"); }
+    @GetMapping("/health") public Map<String,String> health() { return Map.of("status", "ok", "service", "deadlight-records"); }
     @PostMapping("/players") @ResponseStatus(HttpStatus.CREATED)
     public PlayerCredentials register() { return service.register(); }
     @PostMapping("/players/recover")

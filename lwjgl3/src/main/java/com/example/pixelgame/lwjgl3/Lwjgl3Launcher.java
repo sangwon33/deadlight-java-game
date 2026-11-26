@@ -10,6 +10,10 @@ public class Lwjgl3Launcher {
 
     public static void main(String[] args) {
 
+        // A direct host launch must not inherit the original game's cloud URL from the environment.
+        String serverUrl=System.getProperty("deadlight.serverUrl");
+        if(serverUrl==null||serverUrl.isBlank()) System.setProperty("deadlight.serverUrl","http://127.0.0.1:8080");
+
         if (StartupHelper.startNewJvmIfRequired()) {
             return;
         }
